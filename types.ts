@@ -1,6 +1,8 @@
 
 
 
+
+
 export enum GameStatus {
   TITLE_SCREEN,
   HUB,
@@ -397,7 +399,8 @@ export interface PlayerState extends Omit<PlayerStats, 'derivedEffects'> {
   activeProxy: string;
   statusEffects: StatusEffect[];
   cardCollection: string[]; // All cards owned by player
-  deck: string[]; // Player-built deck (must be 15)
+  decks: Record<string, string[]>; // Player-built decks
+  activeDeckId: string;
   equipment: Record<EquipmentSlot, string | null>;
   inventory: string[]; // Array of equipment IDs
   charge: number;
@@ -554,7 +557,8 @@ export interface GameState {
   combatState: CombatState | null;
   customEquipment: Record<string, Equipment>;
   customCards: Record<string, Card>;
-  newlyAcquiredItems?: string[];
+  newlyAcquiredCardIds: string[];
+  newlyAcquiredEquipmentIds: string[];
   isFirstCombatOfMission: boolean;
   interimCombatState?: InterimCombatState;
   missionStartState?: GameState;
@@ -572,14 +576,16 @@ export type GameAction =
   | { type: 'START_PLAYER_TURN' }
   | { type: 'COMBAT_VICTORY' }
   | { type: 'COMBAT_DEFEAT' }
-  | { type: 'ADD_TO_DECK'; payload: { cardId: string } }
-  | { type: 'REMOVE_FROM_DECK'; payload: { cardId: string } }
+  | { type: 'ADD_TO_DECK'; payload: { cardId: string; deckId: string } }
+  | { type: 'REMOVE_FROM_DECK'; payload: { cardId: string; deckId: string; cardIndex: number } }
+  | { type: 'SET_ACTIVE_DECK'; payload: { deckId: string } }
   | { type: 'EQUIP_ITEM'; payload: { itemId: string } }
   | { type: 'UNEQUIP_ITEM'; payload: { slot: EquipmentSlot } }
   | { type: 'SYNCHRONIZE_WEAPON' }
   | { type: 'SYNCHRONIZE_EQUIPMENT' }
   | { type: 'SYNCHRONIZE_CARD' }
-  | { type: 'CLEAR_NEW_ITEMS' }
+  | { type: 'CLEAR_NEW_CARDS' }
+  | { type: 'CLEAR_NEW_EQUIPMENT' }
   | { type: 'DECOMPOSE_ITEM'; payload: { itemId: string } }
   | { type: 'DECOMPOSE_CARD'; payload: { cardId: string } }
   | { type: 'DEBUG_ADD_SEDIMENT'; payload: number }

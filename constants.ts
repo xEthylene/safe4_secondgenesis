@@ -36,6 +36,8 @@ export const COMBAT_SETTINGS = {
   DRAW_PER_TURN: 2,
 };
 
+export const DECK_SIZE = 15;
+
 export const PLAYER_INITIAL_STATS: Omit<PlayerState, 'dreamSediment' | 'completedMissions'> = {
   hp: 100,
   maxHp: 100,
@@ -48,7 +50,12 @@ export const PLAYER_INITIAL_STATS: Omit<PlayerState, 'dreamSediment' | 'complete
   activeProxy: 'Qu-alpha',
   statusEffects: [],
   cardCollection: ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'deploy_turret', 'deploy_turret'],
-  deck: ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'deploy_turret', 'deploy_turret'],
+  decks: {
+    '1': ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'deploy_turret', 'deploy_turret'],
+    '2': [],
+    '3': [],
+  },
+  activeDeckId: '1',
   equipment: {
     weapon: 'basic_blade',
     equipment: 'starter_reactor',

@@ -37,12 +37,13 @@ const Card: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; style?: C
 };
 
 // New MobileCard component for compact display
-const MobileCard: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; className?: string, effectiveCost?: number }> = ({ card, stats, className, effectiveCost }) => {
+const MobileCard: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; className?: string, effectiveCost?: number; style?: CSSProperties; }> = ({ card, stats, className, effectiveCost, style }) => {
     const description = stats ? getDynamicCardDescription(card, stats) : card.description;
     const displayCost = card.costOverride ?? (effectiveCost !== undefined ? effectiveCost : card.cost);
 
     return (
         <div
+            style={style}
             className={`w-28 h-40 border-2 ${getRarityColor(card.rarity)} rounded-md p-2 flex flex-col justify-between text-left shadow-md backdrop-blur-sm ${className}`}
         >
             <div>
@@ -369,6 +370,7 @@ const CombatView: React.FC = () => {
     const [selectedCardInstanceId, setSelectedCardInstanceId] = useState<string | null>(null);
     const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
     const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
+    const [mobileHoveredCardIndex, setMobileHoveredCardIndex] = useState<number | null>(null);
     const [hoveredCardInfo, setHoveredCardInfo] = useState<{ card: CardType; stats: Partial<PlayerStats> } | null>(null);
     const [animatingPlayedCard, setAnimatingPlayedCard] = useState<CombatCard | null>(null);
     
@@ -524,7 +526,7 @@ const CombatView: React.FC = () => {
         }
     };
     
-    const getCardStyle = (index: number): CSSProperties => {
+    const getDesktopCardStyle = (index: number): CSSProperties => {
         const isHovered = hoveredCardIndex === index;
         const totalCards = handSize;
         const baseOverlap = totalCards > 6 ? -80 : -60;
@@ -551,6 +553,34 @@ const CombatView: React.FC = () => {
             transform: `translateY(${yOffset}px) translateX(${xOffset}px) scale(${isHovered ? '1.1' : '1'})`,
         };
     };
+
+    const getMobileCardStyle = (index: number): CSSProperties => {
+        const isHovered = mobileHoveredCardIndex === index;
+        const baseOverlap = -80;
+        const hoverShift = 30;
+
+        let xOffset = 0;
+        let yOffset = 0;
+
+        if (mobileHoveredCardIndex !== null) {
+            if (index < mobileHoveredCardIndex) {
+                xOffset = -hoverShift;
+            } else if (index > mobileHoveredCardIndex) {
+                xOffset = hoverShift;
+            }
+        }
+         if (isHovered) {
+            yOffset = -40;
+        }
+        
+        return {
+            marginLeft: index > 0 ? `${baseOverlap}px` : '0px',
+            transition: 'transform 0.2s ease-out, margin-left 0.2s ease-out',
+            zIndex: isHovered ? 100 : index,
+            transform: `translateY(${yOffset}px) translateX(${xOffset}px) scale(${isHovered ? '1.1' : '1'})`,
+        };
+    };
+
 
     const handleConfirmSelection = () => {
         if (combatState.phase === 'awaiting_discard') {
@@ -625,9 +655,9 @@ const CombatView: React.FC = () => {
                 </div>
             )}
             <div className="md:hidden">
-                {hoveredCardInfo && (
-                    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[60] pointer-events-none p-2 animate-fadeIn">
-                        <Card card={hoveredCardInfo.card as CombatCard} stats={hoveredCardInfo.stats} />
+                {(mobileHoveredCardIndex !== null) && (
+                    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] pointer-events-none p-2 animate-fadeIn">
+                        <MobileCard card={combatState.hand[mobileHoveredCardIndex]} stats={playerStats} />
                     </div>
                 )}
             </div>
@@ -647,7 +677,7 @@ const CombatView: React.FC = () => {
                 </div>
                 
                 <div className="flex-grow flex flex-col justify-center items-center relative px-4 gap-2 md:gap-4 overflow-hidden pt-12">
-                    <div className="w-full flex justify-center items-end gap-2 md:gap-4">
+                     <div className="w-full flex justify-center items-end gap-2 md:gap-4">
                         {combatState.enemies.map(enemy => (
                             <EnemySprite
                                 key={enemy.id} enemy={enemy}
@@ -661,27 +691,15 @@ const CombatView: React.FC = () => {
                                 onActionIntentLeave={handleActionIntentLeave}
                             />
                         ))}
+                        {[...enemyConstructs, ...playerConstructs].map(construct => (
+                             <ConstructSprite 
+                                key={construct.instanceId} construct={construct}
+                                isSelected={selectedTargetId === construct.instanceId}
+                                onSelect={() => handleTargetSelect(construct.instanceId)}
+                                isTargeting={!!isTargeting && !isSelectionPhase}
+                            />
+                        ))}
                     </div>
-                    {(playerConstructs.length > 0 || enemyConstructs.length > 0) && (
-                        <div className="w-full flex justify-center items-start gap-2 md:gap-4">
-                             {enemyConstructs.map(construct => (
-                                <ConstructSprite 
-                                    key={construct.instanceId} construct={construct}
-                                    isSelected={selectedTargetId === construct.instanceId}
-                                    onSelect={() => handleTargetSelect(construct.instanceId)}
-                                    isTargeting={!!isTargeting && !isSelectionPhase}
-                                />
-                            ))}
-                            {playerConstructs.map(construct => (
-                                <ConstructSprite 
-                                    key={construct.instanceId} construct={construct}
-                                    isSelected={selectedTargetId === construct.instanceId}
-                                    onSelect={() => handleTargetSelect(construct.instanceId)}
-                                    isTargeting={!!isTargeting && !isSelectionPhase}
-                                />
-                            ))}
-                        </div>
-                    )}
                 </div>
 
                 <div 
@@ -704,7 +722,7 @@ const CombatView: React.FC = () => {
                             return (
                                 <div
                                     key={card.instanceId}
-                                    style={getCardStyle(index)}
+                                    style={getDesktopCardStyle(index)}
                                     className={`${(combatState.phase === 'awaiting_discard' || combatState.phase === 'awaiting_return_to_deck') ? 'cursor-pointer' : ''}`}
                                     onMouseEnter={() => {
                                         if (!isSelectionPhase) setHoveredCardIndex(index);
@@ -796,8 +814,11 @@ const CombatView: React.FC = () => {
                          {player.statusEffects.map(effect => <StatusEffectIcon key={effect.id + effect.duration} effect={effect} parentAnimationClass={playerAnimationClass} />)}
                     </div>
                 </div>
-                <div className="h-48 bg-gray-900/80 flex items-center space-x-2 overflow-x-auto p-2" onMouseLeave={() => setHoveredCardInfo(null)}>
-                    {combatState.hand.map((card) => {
+                <div 
+                    className="h-48 bg-gray-900/80 flex justify-center items-end pb-4 overflow-hidden" 
+                    onMouseLeave={() => setMobileHoveredCardIndex(null)}
+                >
+                     {combatState.hand.map((card, index) => {
                          const isPlayable = isCardPlayable(card);
                          let effectiveCost = card.costOverride ?? (card.id === 'spark' ? card.cost + combatState.sparkCostModifier : card.cost);
                          if (card.type === 'attack' && combatState.nextAttackCostModifier < 0) {
@@ -807,7 +828,11 @@ const CombatView: React.FC = () => {
                             <div
                                 key={card.instanceId}
                                 className="flex-shrink-0"
-                                onMouseEnter={() => setHoveredCardInfo({ card, stats: playerStats })}
+                                style={getMobileCardStyle(index)}
+                                onMouseEnter={() => {
+                                    setMobileHoveredCardIndex(index);
+                                    setHoveredCardInfo({ card, stats: playerStats });
+                                }}
                                 onClick={() => {
                                     if (isSelectionPhase) handleSelectionClick(card.instanceId);
                                     else if (isPlayable) handleCardClick(card);

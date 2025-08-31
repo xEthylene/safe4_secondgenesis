@@ -2,9 +2,11 @@
 
 
 
+
+
 import React, { createContext, useReducer, useContext, ReactNode, useEffect } from 'react';
 import { GameState, GameAction, GameStatus, Enemy, Character, StatusEffect, EquipmentSlot, PlayerState, PlayerStats, Equipment, Card, CardRarity, AnimationType, AffixEffect, CardEffect, CombatCard, CombatState, Construct } from '../types';
-import { PLAYER_INITIAL_STATS, ENEMIES, CARDS, STATUS_EFFECTS, EQUIPMENT, ENEMY_CARDS, MISSIONS, MAX_COPIES_PER_RARITY, SYNC_COSTS, COMBAT_SETTINGS, CONSTRUCTS, AGGRO_SETTINGS } from '../constants';
+import { PLAYER_INITIAL_STATS, ENEMIES, CARDS, STATUS_EFFECTS, EQUIPMENT, ENEMY_CARDS, MISSIONS, MAX_COPIES_PER_RARITY, SYNC_COSTS, COMBAT_SETTINGS, CONSTRUCTS, AGGRO_SETTINGS, DECK_SIZE } from '../constants';
 import { produce, Draft } from 'immer';
 import { getEffectivePlayerStats } from '../utils/playerUtils';
 import { generateRandomEquipment } from '../utils/equipmentGenerator';
@@ -28,7 +30,8 @@ const initialState: GameState = {
   combatState: null,
   customEquipment: {},
   customCards: {},
-  newlyAcquiredItems: [],
+  newlyAcquiredCardIds: [],
+  newlyAcquiredEquipmentIds: [],
   isFirstCombatOfMission: true,
 };
 
@@ -39,6 +42,22 @@ const loadState = (): GameState => {
       return initialState;
     }
     const loadedState = JSON.parse(serializedState);
+
+    // Migration logic for old save files
+    if (loadedState.player && loadedState.player.deck && !loadedState.player.decks) {
+        loadedState.player.decks = {
+            '1': loadedState.player.deck,
+            '2': [],
+            '3': [],
+        };
+        loadedState.player.activeDeckId = '1';
+        delete loadedState.player.deck;
+    }
+    if (loadedState.newlyAcquiredItems) {
+        loadedState.newlyAcquiredCardIds = loadedState.newlyAcquiredItems;
+        delete loadedState.newlyAcquiredItems;
+    }
+
 
     const mergedState: GameState = {
       ...initialState,
@@ -52,14 +71,16 @@ const loadState = (): GameState => {
         },
         statusEffects: loadedState.player?.statusEffects || initialState.player.statusEffects,
         cardCollection: loadedState.player?.cardCollection || initialState.player.cardCollection,
-        deck: loadedState.player?.deck || initialState.player.deck,
+        decks: loadedState.player?.decks || initialState.player.decks,
+        activeDeckId: loadedState.player?.activeDeckId || initialState.player.activeDeckId,
         inventory: loadedState.player?.inventory || initialState.player.inventory,
         cardSyncsSinceLastEpic: loadedState.player?.cardSyncsSinceLastEpic || 0,
       },
       combatState: loadedState.combatState || initialState.combatState,
       customEquipment: loadedState.customEquipment || initialState.customEquipment,
       customCards: loadedState.customCards || initialState.customCards,
-      newlyAcquiredItems: loadedState.newlyAcquiredItems || initialState.newlyAcquiredItems,
+      newlyAcquiredCardIds: loadedState.newlyAcquiredCardIds || initialState.newlyAcquiredCardIds,
+      newlyAcquiredEquipmentIds: loadedState.newlyAcquiredEquipmentIds || initialState.newlyAcquiredEquipmentIds,
       isFirstCombatOfMission: loadedState.isFirstCombatOfMission !== undefined ? loadedState.isFirstCombatOfMission : true,
       missionStartState: loadedState.missionStartState || undefined,
     };
@@ -1303,7 +1324,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
               };
           });
           
-          const initialDeck = draft.interimCombatState ? draft.interimCombatState.deck : shuffle(draft.player.deck).map(cardId => ({
+          const deckToUse = draft.player.decks[draft.player.activeDeckId];
+          const initialDeck = draft.interimCombatState ? draft.interimCombatState.deck : shuffle(deckToUse).map(cardId => ({
             ...allCards[cardId],
             instanceId: `${cardId}_${Date.now()}_${Math.random()}`
           }));
@@ -1395,7 +1417,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                   };
               });
               
-              const initialDeck = draft.interimCombatState ? draft.interimCombatState.deck : shuffle(draft.player.deck).map(cardId => ({
+              const deckToUse = draft.player.decks[draft.player.activeDeckId];
+              const initialDeck = draft.interimCombatState ? draft.interimCombatState.deck : shuffle(deckToUse).map(cardId => ({
                 ...allCards[cardId],
                 instanceId: `${cardId}_${Date.now()}_${Math.random()}`
               }));
@@ -2326,22 +2349,30 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         break;
 
       case 'ADD_TO_DECK': {
-        if (draft.player.deck.length < 15) {
-            const cardId = action.payload.cardId;
+        const { cardId, deckId } = action.payload;
+        const deck = draft.player.decks[deckId];
+        if (deck && deck.length < DECK_SIZE) {
             const collectionCount = draft.player.cardCollection.filter(c => c === cardId).length;
-            const deckCount = draft.player.deck.filter(c => c === cardId).length;
+            const deckCount = deck.filter(c => c === cardId).length;
             if (deckCount < collectionCount) {
-                draft.player.deck.push(cardId);
+                deck.push(cardId);
             }
         }
         break;
       }
 
       case 'REMOVE_FROM_DECK': {
-        const index = draft.player.deck.findIndex(c => c === action.payload.cardId);
-        if (index > -1) {
-            draft.player.deck.splice(index, 1);
+        const { deckId, cardIndex } = action.payload;
+        const deck = draft.player.decks[deckId];
+        // FIX: Replaced 'index' with 'cardIndex' to correctly reference the payload property.
+        if (deck && cardIndex > -1 && cardIndex < deck.length) {
+            deck.splice(cardIndex, 1);
         }
+        break;
+      }
+
+      case 'SET_ACTIVE_DECK': {
+        draft.player.activeDeckId = action.payload.deckId;
         break;
       }
 
@@ -2378,6 +2409,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             const newWeapon = generateRandomEquipment(stage, 'weapon');
             draft.customEquipment[newWeapon.id] = newWeapon;
             draft.player.inventory.push(newWeapon.id);
+            draft.newlyAcquiredEquipmentIds = [newWeapon.id];
         }
         break;
       }
@@ -2390,6 +2422,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             const newEquipment = generateRandomEquipment(stage, 'equipment');
             draft.customEquipment[newEquipment.id] = newEquipment;
             draft.player.inventory.push(newEquipment.id);
+            draft.newlyAcquiredEquipmentIds = [newEquipment.id];
         }
         break;
       }
@@ -2411,16 +2444,21 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             }
 
             newCards.forEach(cardId => draft.player.cardCollection.push(cardId));
-            draft.newlyAcquiredItems = newCards;
+            draft.newlyAcquiredCardIds = newCards;
         }
         break;
       }
       
-      case 'CLEAR_NEW_ITEMS': {
-        draft.newlyAcquiredItems = [];
+      case 'CLEAR_NEW_CARDS': {
+        draft.newlyAcquiredCardIds = [];
         break;
       }
       
+      case 'CLEAR_NEW_EQUIPMENT': {
+        draft.newlyAcquiredEquipmentIds = [];
+        break;
+      }
+
       case 'DECOMPOSE_ITEM': {
         const { itemId } = action.payload;
         const isEquipped = Object.values(draft.player.equipment).includes(itemId);
@@ -2439,8 +2477,13 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       case 'DECOMPOSE_CARD': {
           const { cardId } = action.payload;
           const collectionCount = draft.player.cardCollection.filter(c => c === cardId).length;
-          const deckCount = draft.player.deck.filter(c => c === cardId).length;
-          if (collectionCount > deckCount) {
+          
+          let totalDeckCount = 0;
+          Object.values(draft.player.decks).forEach(deck => {
+              totalDeckCount += deck.filter(c => c === cardId).length;
+          });
+          
+          if (collectionCount > totalDeckCount) {
               const collectionIndex = draft.player.cardCollection.findIndex(c => c === cardId);
               if (collectionIndex > -1) {
                   draft.player.cardCollection.splice(collectionIndex, 1);

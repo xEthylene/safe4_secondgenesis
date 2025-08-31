@@ -39,13 +39,13 @@ const DialogueView: React.FC = () => {
                      <div className={`w-full max-w-4xl mx-auto my-4 flex items-end gap-4 animate-fadeIn ${isPlayer ? 'flex-row-reverse' : 'flex-row'}`}>
                         {showPortrait && (
                              <div className="flex-shrink-0">
-                                 <img src={portrait} alt={event.character} className="w-28 h-40 md:w-36 md:h-52 object-cover rounded-t-lg bg-gray-800 border-b-4 border-cyan-500/50" />
+                                 <img src={portrait} alt={event.character} className="w-24 h-32 md:w-36 md:h-52 object-cover rounded-t-lg bg-gray-800 border-b-4 border-cyan-500/50" />
                              </div>
                         )}
                         <div className={`flex-1 ${!showPortrait ? 'max-w-3xl' : ''} ${isSystem ? 'text-center' : ''}`}>
                             <div className={`inline-block p-4 rounded-lg w-full ${isPlayer ? 'bg-blue-800/50' : 'bg-gray-800/50'} border ${isPlayer ? 'border-blue-500/30' : 'border-gray-600/30'}`}>
                                <p className={`font-bold mb-2 ${isSystem ? 'text-cyan-400' : 'text-yellow-400'}`}>{event.character}</p>
-                               <div className="text-lg leading-relaxed whitespace-pre-wrap text-left"><Typewriter text={event.text} onFinished={() => setCanProceed(true)} /></div>
+                               <div className="text-base md:text-lg leading-relaxed whitespace-pre-wrap text-left"><Typewriter text={event.text} onFinished={() => setCanProceed(true)} /></div>
                             </div>
                         </div>
                     </div>

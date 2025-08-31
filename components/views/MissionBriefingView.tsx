@@ -11,23 +11,25 @@ const MissionBriefingView: React.FC = () => {
     const mission = MISSIONS[state.currentMissionId];
 
     return (
-        <div className="flex flex-col h-full items-center justify-center p-8 pt-16 animate-fadeIn">
-            <div className="w-full max-w-3xl bg-gray-800/70 p-6 rounded-lg border border-gray-700">
-                <h1 className={`text-3xl font-bold ${mission.type === 'main' ? 'text-cyan-400' : 'text-purple-400'}`}>{mission.title}</h1>
+        <div className="flex flex-col h-full items-center justify-center p-4 md:p-8 pt-16 animate-fadeIn">
+            <div className="w-full max-w-3xl bg-gray-800/70 p-4 md:p-6 rounded-lg border border-gray-700">
+                <h1 className={`text-2xl md:text-3xl font-bold ${mission.type === 'main' ? 'text-cyan-400' : 'text-purple-400'}`}>{mission.title}</h1>
                 <p className="text-sm text-gray-400 mt-1">签发单位: {mission.issuer}</p>
                 {mission.operator && <p className="text-sm text-gray-400">接线员: {mission.operator}</p>}
 
                 <div className="my-6 border-t border-gray-600"></div>
 
-                <h2 className="text-xl font-semibold mb-2 text-gray-300">任务概述</h2>
-                <div className="text-gray-400 space-y-3 leading-relaxed">
+                <h2 className="text-lg md:text-xl font-semibold mb-2 text-gray-300">任务概述</h2>
+                <div className="text-sm md:text-base text-gray-400 space-y-3 leading-relaxed">
                     {mission.description.map((p, i) => <p key={i}>{p}</p>)}
                 </div>
 
                 <div className="my-6 border-t border-gray-600"></div>
 
-                <h2 className="text-xl font-semibold mb-2 text-gray-300">报酬</h2>
-                <p className="text-purple-300">{mission.rewards.dreamSediment} 梦境沉淀</p>
+                <h2 className="text-lg md:text-xl font-semibold mb-2 text-gray-300">报酬</h2>
+                <p className="text-purple-300 mt-2 text-base md:text-lg">
+                    +{mission.rewards.dreamSediment} 梦境沉淀
+                </p>
                 
                 <div className="mt-8 flex justify-end space-x-4">
                      <button

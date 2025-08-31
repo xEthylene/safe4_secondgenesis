@@ -1,6 +1,7 @@
 
 
 
+
 import React, { createContext, useReducer, useContext, ReactNode, useEffect } from 'react';
 import { GameState, GameAction, GameStatus, Enemy, Character, StatusEffect, EquipmentSlot, PlayerState, PlayerStats, Equipment, Card, CardRarity, AnimationType, AffixEffect, CardEffect, CombatCard, CombatState, Construct } from '../types';
 import { PLAYER_INITIAL_STATS, ENEMIES, CARDS, STATUS_EFFECTS, EQUIPMENT, ENEMY_CARDS, MISSIONS, MAX_COPIES_PER_RARITY, SYNC_COSTS, COMBAT_SETTINGS, CONSTRUCTS, AGGRO_SETTINGS } from '../constants';
@@ -1592,10 +1593,13 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             addLog(`[${card.name}] 溢流效果触发！`, 'text-cyan-200');
             processCardEffect(card.effect.overflowEffect, card.id, targetId);
         } else {
-            const immediateEffect = { ...card.effect };
-            delete (immediateEffect as Partial<CardEffect>).discardCards;
-            delete (immediateEffect as Partial<CardEffect>).generateCardChoice;
-            delete (immediateEffect as Partial<CardEffect>).choiceEffect;
+            // FIX: Replace delete statements with object destructuring for type safety and clarity.
+            const {
+                discardCards,
+                generateCardChoice,
+                choiceEffect,
+                ...immediateEffect
+            } = card.effect;
     
             processCardEffect(immediateEffect, card.id, targetId);
 
@@ -1878,7 +1882,9 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                     draft.combatState.discard.push(newCard);
                 }
             });
-            delete feverishPowerEffect.data.cardsToAdd;
+            if (feverishPowerEffect.data) {
+                feverishPowerEffect.data.cardsToAdd = undefined;
+            }
         }
 
         const painEchoEffect = draft.player.statusEffects.find(e => e.id === 'pain_echo_effect');
@@ -2396,7 +2402,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             const forceEpic = cardSyncs >= 2;
 
             const newCards = generateCardPack(draft.player.cardCollection, forceEpic);
-            const hasEpic = newCards.some(id => allCards[id].rarity === CardRarity.EPIC);
+            const hasEpic = newCards.some(id => allCards[id]?.rarity === CardRarity.EPIC);
 
             if (hasEpic) {
                 draft.player.cardSyncsSinceLastEpic = 0;

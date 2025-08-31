@@ -1,5 +1,3 @@
-
-
 import { Enemy } from '../types';
 
 // FIX: Completed the enemy definitions file, which was previously truncated.

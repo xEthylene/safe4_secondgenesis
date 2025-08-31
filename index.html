@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SAFE4: Second Genesis</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 1. Add Babel Standalone for in-browser JSX/TS transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script type="importmap">
 {
   "imports": {
@@ -19,6 +21,31 @@
 }
 </script>
 <style>
+  :root {
+    --color-bg: #111827; /* gray-900 */
+    --color-text: #f3f4f6; /* gray-100 */
+    --color-primary: #3b82f6; /* blue-500 */
+    --color-primary-dark: #1e40af; /* blue-800 */
+    --color-primary-light: #60a5fa; /* blue-400 */
+    --color-secondary: #ef4444; /* red-500 */
+    --color-secondary-dark: #b91c1c; /* red-700 */
+  }
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+  }
+  .app-container {
+    box-shadow: 0 0 25px 5px rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.2);
+  }
+  .text-primary { color: var(--color-primary-light); }
+  .bg-primary { background-color: var(--color-primary); }
+  .hover\:bg-primary-light:hover { background-color: var(--color-primary-light); }
+  .border-primary { border-color: var(--color-primary); }
+  .bg-secondary { background-color: var(--color-secondary); }
+  .hover\:bg-secondary-dark:hover { background-color: var(--color-secondary-dark); }
+  .border-secondary { border-color: var(--color-secondary); }
+  
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .animate-fadeIn { animation: fadeIn 0.5s ease-in-out; }
   @keyframes dissolve { 0% { opacity: 1; filter: blur(0); } 100% { opacity: 0; filter: blur(10px); transform: scale(0.9); } }
@@ -122,8 +149,9 @@
 
 </style>
 </head>
-  <body class="bg-gray-900 text-gray-100">
+  <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <!-- 2. Change script type to text/babel for in-browser transpilation -->
+    <script type="text/babel" data-type="module" src="/index.tsx"></script>
   </body>
 </html>

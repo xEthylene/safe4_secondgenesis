@@ -1,18 +1,19 @@
+
 import React, { useEffect, useState, useRef, CSSProperties } from 'react';
 import { useGame } from '../../contexts/GameContext';
 import { Enemy, Card as CardType, StatusEffect, CardRarity, CombatLogEntry, PlayerStats, CombatCard, CardEffect, Construct } from '../../types';
 import { CARDS, ENEMY_CARDS, CONSTRUCTS } from '../../constants';
-import { DocumentDuplicateIcon, ArchiveBoxIcon, ShieldCheckIcon, RectangleStackIcon, HandRaisedIcon, ExclamationTriangleIcon, PlusIcon, CubeIcon } from '@heroicons/react/24/solid';
+import { DocumentDuplicateIcon, ArchiveBoxIcon, ShieldCheckIcon, RectangleStackIcon, HandRaisedIcon, ExclamationTriangleIcon, PlusIcon, CubeIcon, CpuChipIcon } from '@heroicons/react/24/solid';
 import { getDynamicCardDescription } from '../../utils/cardUtils';
 import { getEffectivePlayerStats } from '../../utils/playerUtils';
 import TurnBanner from '../TurnBanner';
 
 const getRarityColor = (rarity: CardRarity) => {
     switch (rarity) {
-        case CardRarity.COMMON: return 'border-gray-500 bg-gray-800';
-        case CardRarity.RARE: return 'border-blue-500 bg-blue-900';
-        case CardRarity.EPIC: return 'border-purple-600 bg-purple-900';
-        default: return 'border-gray-700 bg-gray-800';
+        case CardRarity.COMMON: return 'border-gray-500 bg-gray-800/80';
+        case CardRarity.RARE: return 'border-blue-500 bg-blue-900/80';
+        case CardRarity.EPIC: return 'border-purple-600 bg-purple-900/80';
+        default: return 'border-gray-700 bg-gray-800/80';
     }
 };
 
@@ -23,17 +24,37 @@ const Card: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; style?: C
     return (
         <div
             style={style}
-            className={`w-40 h-56 border-4 ${getRarityColor(card.rarity)} rounded-lg p-3 flex flex-col justify-between text-left shadow-lg ${className}`}
+            className={`w-40 h-56 border-2 md:border-4 ${getRarityColor(card.rarity)} rounded-lg p-3 flex flex-col justify-between text-left shadow-lg backdrop-blur-sm ${className}`}
         >
             <div>
                 <h3 className="font-bold text-base text-white">{card.name}</h3>
                 <p className="text-xs text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
             </div>
             <p className="text-sm text-gray-200 flex-grow mt-2 whitespace-pre-wrap">{description}</p>
-            <p className="text-lg font-bold text-cyan-400 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} HP` : `${displayCost} CP`}</p>
+            <p className="text-lg font-bold text-blue-300 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
         </div>
     )
 };
+
+// New MobileCard component for compact display
+const MobileCard: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; className?: string, effectiveCost?: number }> = ({ card, stats, className, effectiveCost }) => {
+    const description = stats ? getDynamicCardDescription(card, stats) : card.description;
+    const displayCost = card.costOverride ?? (effectiveCost !== undefined ? effectiveCost : card.cost);
+
+    return (
+        <div
+            className={`w-32 h-44 border-2 ${getRarityColor(card.rarity)} rounded-md p-2 flex flex-col justify-between text-left shadow-md backdrop-blur-sm ${className}`}
+        >
+            <div>
+                <h3 className="font-bold text-sm text-white truncate">{card.name}</h3>
+                <p className="text-xs text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
+            </div>
+            <p className="text-xs text-gray-200 flex-grow mt-1 whitespace-pre-wrap overflow-hidden">{description}</p>
+            <p className="text-base font-bold text-blue-300 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
+        </div>
+    )
+};
+
 
 const FloatingText: React.FC<{ text: string; color: string }> = ({ text, color }) => (
     <div className={`absolute top-0 left-1/2 -translate-x-1/2 font-bold text-2xl animate-float-up ${color}`} style={{ textShadow: '1px 1px 2px black' }}>
@@ -132,7 +153,7 @@ const ActionIntentIcon: React.FC<{ card: CardType; enemy: Enemy }> = ({ card, en
     const isEmpowered = enemy.statusEffects.some(e => e.id === 'empowered');
     
     if (card.effect.damageMultiplier) {
-        let damage = Math.round(enemy.attack * card.effect.damageMultiplier * (isEmpowered ? 2.0 : 1.0));
+        let damage = Math.round(enemy.attack * card.effect.damageMultiplier * (isEmpowered ? 2.5 : 1.0));
         value = damage * (card.effect.hitCount || 1);
         icon = <HandRaisedIcon className="w-4 h-4 text-red-400" />;
     } else if (card.effect.gainBlock) {
@@ -160,14 +181,14 @@ const EnemySprite: React.FC<{
     actionCards: CardType[] | null; 
     isAttacking: boolean; 
     currentActionIndex: number;
-    onActionIntentEnter: (e: React.MouseEvent, card: CardType, enemy: Enemy) => void;
+    onActionIntentEnter: (card: CardType, enemy: Enemy) => void;
     onActionIntentLeave: () => void;
 }> = ({ enemy, isSelected, onSelect, isTargeting, actionCards, isAttacking, currentActionIndex, onActionIntentEnter, onActionIntentLeave }) => {
     const hpPercentage = (enemy.hp / enemy.maxHp) * 100;
     const { animationClass, floatingTexts } = useCombatEntityAnimation(enemy.id, enemy.hp, enemy.block);
     
     const isDefeated = enemy.hp <= 0;
-    const selectionClass = isSelected && !isDefeated ? 'border-yellow-400 scale-105' : 'border-red-500/50';
+    const selectionClass = isSelected && !isDefeated ? 'border-yellow-400 scale-105' : 'border-red-800';
     const targetingClass = isTargeting && !isDefeated ? 'cursor-pointer hover:border-yellow-400 ring-2 ring-yellow-400 animate-pulse' : '';
     const defeatedClass = isDefeated ? 'animate-dissolve' : '';
     const attackingClass = isAttacking ? 'animate-enemy-attack' : '';
@@ -181,11 +202,11 @@ const EnemySprite: React.FC<{
             className={`flex flex-col items-center transition-transform duration-200 relative ${defeatedClass}`}
             onClick={isTargeting && !isDefeated ? onSelect : undefined}
         >
-            <div className="absolute -top-16 w-full flex justify-center items-center gap-1 z-10 h-8">
+            <div className="absolute -top-12 md:-top-16 w-full flex justify-center items-center gap-1 z-10 h-8">
                  {!isAttacking && actionCards && actionCards.map((card, index) => (
                     <div
                         key={index}
-                        onMouseEnter={(e) => onActionIntentEnter(e, card, enemy)}
+                        onMouseEnter={() => onActionIntentEnter(card, enemy)}
                         onMouseLeave={onActionIntentLeave}
                     >
                         <ActionIntentIcon card={card} enemy={enemy} />
@@ -202,12 +223,12 @@ const EnemySprite: React.FC<{
                     </div>
                 )}
             </div>
-            <div className="absolute -top-6 right-0 flex items-center bg-gray-900/80 px-2 py-1 rounded-md text-xs z-10">
+            <div className="hidden md:flex absolute -top-6 right-0 items-center bg-gray-900/80 px-2 py-1 rounded-md text-xs z-10">
                 <span className="font-bold text-blue-300 mr-2">潮汐: {tideDisplay}/3</span>
                 <RectangleStackIcon className="w-4 h-4 mr-1 text-gray-300" />
                 <span className="font-bold">{enemy.hand.length + enemy.deck.length}</span>
             </div>
-            <div className={`w-32 h-32 bg-red-900/50 border-4 rounded-full flex items-center justify-center mb-2 relative transition-all duration-200 ${selectionClass} ${targetingClass} ${animationClass} ${attackingClass}`}>
+            <div className={`w-24 h-24 md:w-32 md:h-32 bg-red-900/50 border-4 rounded-full flex items-center justify-center mb-2 relative transition-all duration-200 ${selectionClass} ${targetingClass} ${animationClass} ${attackingClass}`}>
                 <span className="text-4xl">💀</span>
                 {enemy.block > 0 && 
                     <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white font-bold">
@@ -217,8 +238,8 @@ const EnemySprite: React.FC<{
                 }
             </div>
             <p className="font-bold text-lg">{enemy.name}</p>
-            <div className="w-40 bg-gray-700 rounded-full h-3 mt-1 relative">
-                <div className="bg-red-600 h-3 rounded-full transition-all duration-500" style={{ width: `${hpPercentage}%` }}></div>
+            <div className="w-32 md:w-40 bg-gray-700 rounded-full h-3 mt-1 relative">
+                <div className="bg-red-500 h-3 rounded-full transition-all duration-500" style={{ width: `${hpPercentage}%` }}></div>
                 <span className="absolute inset-0 w-full text-center text-xs font-mono text-white">{enemy.hp}/{enemy.maxHp}</span>
             </div>
             <div className="flex space-x-1 mt-2 h-8">
@@ -259,7 +280,7 @@ const ConstructSprite: React.FC<{
                 </div>
             </div>
             <div className={`w-24 h-24 bg-gray-900/50 border-4 rounded-md flex items-center justify-center mb-2 relative transition-all duration-200 ${selectionClass} ${targetingClass} ${animationClass}`}>
-                <CubeIcon className="w-16 h-16 text-cyan-400 opacity-70" />
+                <CubeIcon className="w-16 h-16 text-blue-400 opacity-70" />
                 {construct.block > 0 && 
                     <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white font-bold text-sm">
                         <ShieldCheckIcon className="w-4 h-4 absolute opacity-30" />
@@ -278,26 +299,6 @@ const ConstructSprite: React.FC<{
         </div>
     );
 }
-
-
-const CombatLog: React.FC<{ log: CombatLogEntry[] }> = ({ log }) => {
-    const logEndRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [log]);
-    
-    return (
-        <div className="w-64 h-full bg-gray-900/70 border-l border-gray-700 p-2 flex flex-col">
-            <h2 className="text-center font-bold text-gray-400 border-b border-gray-600 pb-1 mb-2">战斗记录</h2>
-            <div className="flex-grow overflow-y-auto pr-1 text-sm space-y-1">
-                {log.map(entry => (
-                    <p key={entry.id} className={entry.color || 'text-gray-300'}>{entry.text}</p>
-                ))}
-                <div ref={logEndRef} />
-            </div>
-        </div>
-    );
-};
 
 const CardChoiceOverlay: React.FC = () => {
     const { state, dispatch } = useGame();
@@ -351,7 +352,7 @@ const EffectChoiceOverlay: React.FC = () => {
                     <button
                         key={index}
                         onClick={() => handleChoice(option.effect)}
-                        className="p-4 bg-gray-800 text-white text-lg font-semibold rounded-md border-2 border-gray-700 hover:border-cyan-500 hover:bg-cyan-900/50 transition-all duration-200 transform hover:scale-105"
+                        className="p-4 bg-gray-800 text-white text-lg font-semibold rounded-md border-2 border-gray-700 hover:border-blue-500 hover:bg-blue-900/50 transition-all duration-200 transform hover:scale-105"
                     >
                         {option.description}
                     </button>
@@ -368,15 +369,9 @@ const CombatView: React.FC = () => {
     const [selectedCardInstanceId, setSelectedCardInstanceId] = useState<string | null>(null);
     const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
     const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
-    const [actionTooltip, setActionTooltip] = useState<{
-        card: CardType;
-        enemy: Enemy;
-        top: number;
-        left: number;
-    } | null>(null);
+    const [hoveredCardInfo, setHoveredCardInfo] = useState<{ card: CardType; stats: Partial<PlayerStats> } | null>(null);
     const [animatingPlayedCard, setAnimatingPlayedCard] = useState<CombatCard | null>(null);
     
-    // State for new selection UIs
     const [selectedInstanceIds, setSelectedInstanceIds] = useState<string[]>([]);
 
     const [shake, setShake] = useState(false);
@@ -391,6 +386,11 @@ const CombatView: React.FC = () => {
     const [bannerText, setBannerText] = useState<string | null>(null);
     const prevTurnRef = useRef(combatState?.turn);
     const prevPhaseRef = useRef(combatState?.phase);
+    const logEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [combatState?.log]);
 
     useEffect(() => {
         if (!combatState) return;
@@ -414,18 +414,12 @@ const CombatView: React.FC = () => {
 
     const isSelectionPhase = combatState?.phase === 'awaiting_discard' || combatState?.phase === 'awaiting_return_to_deck' || combatState?.phase === 'awaiting_effect_choice';
 
-    const handleActionIntentEnter = (e: React.MouseEvent, card: CardType, enemy: Enemy) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setActionTooltip({
-            card,
-            enemy,
-            top: rect.bottom,
-            left: rect.left + rect.width / 2,
-        });
+    const handleActionIntentEnter = (card: CardType, enemy: Enemy) => {
+        setHoveredCardInfo({ card, stats: { attack: enemy.attack, defense: enemy.defense } });
     };
 
     const handleActionIntentLeave = () => {
-        setActionTooltip(null);
+        setHoveredCardInfo(null);
     };
 
     useEffect(() => {
@@ -526,7 +520,7 @@ const CombatView: React.FC = () => {
         }
     };
     
-    const getCardStyle = (card: CombatCard, index: number): CSSProperties => {
+    const getCardStyle = (index: number): CSSProperties => {
         const isHovered = hoveredCardIndex === index;
         const totalCards = handSize;
         const baseOverlap = totalCards > 6 ? -80 : -60;
@@ -535,24 +529,17 @@ const CombatView: React.FC = () => {
         let xOffset = 0;
         let yOffset = 0;
 
-        if (combatState.phase === 'awaiting_discard' || combatState.phase === 'awaiting_return_to_deck') {
-             if (selectedInstanceIds.includes(card.instanceId)) {
-                yOffset = -20;
-             }
-        } else {
-            if (hoveredCardIndex !== null) {
-                if (index < hoveredCardIndex) {
-                    xOffset = -hoverShift;
-                } else if (index > hoveredCardIndex) {
-                    xOffset = hoverShift;
-                }
-            }
-             if (isHovered) {
-                yOffset = -40;
+        if (hoveredCardIndex !== null) {
+            if (index < hoveredCardIndex) {
+                xOffset = -hoverShift;
+            } else if (index > hoveredCardIndex) {
+                xOffset = hoverShift;
             }
         }
-
-
+         if (isHovered) {
+            yOffset = -40;
+        }
+        
         return {
             marginLeft: index > 0 ? `${baseOverlap}px` : '0px',
             transition: 'transform 0.2s ease-out, margin-left 0.2s ease-out',
@@ -580,7 +567,7 @@ const CombatView: React.FC = () => {
                  <button 
                     onClick={handleConfirmSelection}
                     disabled={!isReady}
-                    className="px-8 py-3 bg-cyan-600 text-white font-bold rounded-md enabled:hover:bg-cyan-500 disabled:opacity-50 transition-all duration-300 transform enabled:hover:scale-105 active:scale-95"
+                    className="px-6 py-2 bg-blue-600 text-white font-bold rounded-md enabled:hover:bg-blue-500 disabled:opacity-50 transition-all duration-300 transform enabled:hover:scale-105 active:scale-95 text-lg"
                 >
                     {buttonText} ({selectedInstanceIds.length}/{action.count})
                 </button>
@@ -590,7 +577,7 @@ const CombatView: React.FC = () => {
              <button 
                 onClick={() => dispatch({ type: 'END_TURN' })}
                 disabled={combatState.phase !== 'player_turn'}
-                className="px-8 py-3 bg-red-700 text-white font-bold rounded-md enabled:hover:bg-red-600 disabled:opacity-50 transition-all duration-300 transform enabled:hover:scale-105 active:scale-95"
+                className="px-8 py-3 bg-red-600 text-white font-bold rounded-md enabled:hover:bg-red-500 disabled:opacity-50 transition-all duration-300 transform enabled:hover:scale-105 active:scale-95 text-xl"
             >
                 结束回合
             </button>
@@ -601,23 +588,8 @@ const CombatView: React.FC = () => {
     const enemyConstructs = combatState.constructs.filter(c => c.owner !== 'player');
 
     return (
-         <div className={`h-full flex animate-fadeIn pt-16 ${shake ? 'animate-screen-shake' : ''}`}>
+         <div className={`h-full flex flex-col md:flex-row animate-fadeIn pt-16 ${shake ? 'animate-screen-shake' : ''}`}>
             <TurnBanner text={bannerText || ''} />
-            {actionTooltip && (
-                <div
-                    className="fixed p-0 text-left text-white z-50 pointer-events-none"
-                    style={{
-                        top: actionTooltip.top,
-                        left: actionTooltip.left,
-                        transform: 'translate(-50%, 8px)',
-                    }}
-                >
-                    <Card 
-                        card={actionTooltip.card as CombatCard} 
-                        stats={{ attack: actionTooltip.enemy.attack, defense: actionTooltip.enemy.defense }} 
-                    />
-                </div>
-            )}
             {animatingPlayedCard && (
                 <div
                     key={animatingPlayedCard.instanceId}
@@ -639,47 +611,51 @@ const CombatView: React.FC = () => {
                     </div>
                 )}
 
-
                 <div className="absolute top-1/2 left-1/4 w-1/2 h-10 pointer-events-none z-30">
                      {playerFloatingTexts.map(ft => <FloatingText key={ft.id} text={ft.text} color={ft.color} />)}
                 </div>
 
-                <div className="flex-grow flex flex-col px-4">
-                    {/* Top row for enemy constructs */}
-                    <div className="h-1/3 flex items-end justify-center gap-6">
-                        {enemyConstructs.map(construct => (
-                            <ConstructSprite 
-                                key={construct.instanceId}
-                                construct={construct}
-                                isSelected={selectedTargetId === construct.instanceId}
-                                onSelect={() => handleTargetSelect(construct.instanceId)}
-                                isTargeting={!!isTargeting && !isSelectionPhase}
-                            />
-                        ))}
+                {/* Main battle area */}
+                <div className="flex-grow flex flex-col relative px-4">
+                    {/* This container will hold both enemies and player constructs for positioning */}
+                    <div className="flex-1 flex flex-col justify-center">
+                        {/* Enemy Row */}
+                        <div className="w-full flex justify-center items-end gap-6">
+                            {/* Main Enemies */}
+                            <div className="flex justify-center items-end gap-8">
+                                {combatState.enemies.map(enemy => (
+                                    <EnemySprite
+                                        key={enemy.id} enemy={enemy}
+                                        actionCards={combatState.enemyActions[enemy.id] || null}
+                                        isSelected={selectedTargetId === enemy.id}
+                                        onSelect={() => handleTargetSelect(enemy.id)}
+                                        isTargeting={!!isTargeting && !isSelectionPhase}
+                                        isAttacking={combatState.attackingEnemyId === enemy.id}
+                                        currentActionIndex={combatState.activeActionIndex}
+                                        onActionIntentEnter={handleActionIntentEnter}
+                                        onActionIntentLeave={handleActionIntentLeave}
+                                    />
+                                ))}
+                            </div>
+                            {/* Enemy Constructs on the right flank */}
+                            <div className="flex flex-col justify-start gap-4">
+                                {enemyConstructs.map(construct => (
+                                    <ConstructSprite 
+                                        key={construct.instanceId} construct={construct}
+                                        isSelected={selectedTargetId === construct.instanceId}
+                                        onSelect={() => handleTargetSelect(construct.instanceId)}
+                                        isTargeting={!!isTargeting && !isSelectionPhase}
+                                    />
+                                ))}
+                            </div>
+                        </div>
                     </div>
-                     {/* Middle row for enemies */}
-                    <div className="h-1/3 flex items-center justify-around">
-                        {combatState.enemies.map(enemy => (
-                            <EnemySprite
-                                key={enemy.id}
-                                enemy={enemy}
-                                actionCards={combatState.enemyActions[enemy.id] || null}
-                                isSelected={selectedTargetId === enemy.id}
-                                onSelect={() => handleTargetSelect(enemy.id)}
-                                isTargeting={!!isTargeting && !isSelectionPhase}
-                                isAttacking={combatState.attackingEnemyId === enemy.id}
-                                currentActionIndex={combatState.activeActionIndex}
-                                onActionIntentEnter={handleActionIntentEnter}
-                                onActionIntentLeave={handleActionIntentLeave}
-                            />
-                        ))}
-                    </div>
-                     {/* Bottom row for player constructs */}
-                    <div className="h-1/3 flex items-start justify-center gap-6">
+
+                    {/* Player Constructs on the bottom left flank */}
+                    <div className="absolute bottom-4 left-4 flex items-end gap-4">
                         {playerConstructs.map(construct => (
                             <ConstructSprite 
-                                key={construct.instanceId}
-                                construct={construct}
+                                key={construct.instanceId} construct={construct}
                                 isSelected={selectedTargetId === construct.instanceId}
                                 onSelect={() => handleTargetSelect(construct.instanceId)}
                                 isTargeting={!!isTargeting && !isSelectionPhase}
@@ -688,17 +664,44 @@ const CombatView: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Mobile Hand View */}
+                <div
+                    className="md:hidden h-48 flex-shrink-0 bg-gray-900/50 flex items-center space-x-2 overflow-x-auto p-2"
+                    onMouseLeave={() => setHoveredCardInfo(null)}
+                >
+                    {combatState.hand.map((card) => {
+                        const isPlayable = isCardPlayable(card);
+                         let effectiveCost = card.costOverride ?? (card.id === 'spark' ? card.cost + combatState.sparkCostModifier : card.cost);
+                         if (card.type === 'attack' && combatState.nextAttackCostModifier < 0) {
+                            effectiveCost = Math.max(0, effectiveCost + combatState.nextAttackCostModifier);
+                         }
+                        return (
+                            <div
+                                key={card.instanceId}
+                                className="flex-shrink-0"
+                                onMouseEnter={() => setHoveredCardInfo({ card, stats: playerStats })}
+                                onClick={() => isPlayable && handleCardClick(card)}
+                            >
+                                <MobileCard card={card} stats={playerStats} effectiveCost={effectiveCost} className={`${!isPlayable ? 'opacity-50 filter grayscale' : 'cursor-pointer'}`} />
+                            </div>
+                        )
+                    })}
+                </div>
+
+                {/* Desktop Hand View */}
                 <div 
-                    className="h-64 flex justify-center items-end"
+                    className="hidden md:flex h-64 justify-center items-end"
                     style={{ pointerEvents: isTargeting && !isSelectionPhase ? 'none' : 'auto'}}
-                    onMouseLeave={() => setHoveredCardIndex(null)}
+                    onMouseLeave={() => {
+                        setHoveredCardIndex(null);
+                        setHoveredCardInfo(null);
+                    }}
                 >
                     <div className={`flex justify-center items-end max-w-4xl mx-auto p-4 ${combatState.phase !== 'player_turn' ? 'opacity-50' : ''}`}>
                         {combatState.hand.map((card, index) => {
                             const isPlayable = isCardPlayable(card);
                             const isSelectedForAction = selectedCardInstanceId === card.instanceId;
-                            const isSelectedForSelection = selectedInstanceIds.includes(card.instanceId);
-                             let effectiveCost = card.costOverride ?? (card.id === 'spark' ? card.cost + combatState.sparkCostModifier : card.cost);
+                            let effectiveCost = card.costOverride ?? (card.id === 'spark' ? card.cost + combatState.sparkCostModifier : card.cost);
                              if (card.type === 'attack' && combatState.nextAttackCostModifier < 0) {
                                 effectiveCost = Math.max(0, effectiveCost + combatState.nextAttackCostModifier);
                              }
@@ -706,15 +709,17 @@ const CombatView: React.FC = () => {
                             return (
                                 <div
                                     key={card.instanceId}
-                                    style={getCardStyle(card, index)}
+                                    style={getCardStyle(index)}
                                     className={`${(combatState.phase === 'awaiting_discard' || combatState.phase === 'awaiting_return_to_deck') ? 'cursor-pointer' : ''}`}
-                                    onMouseEnter={() => !isSelectionPhase && setHoveredCardIndex(index)}
+                                    onMouseEnter={() => {
+                                        if (!isSelectionPhase) setHoveredCardIndex(index);
+                                        setHoveredCardInfo({ card, stats: playerStats });
+                                    }}
                                     onClick={() => (combatState.phase === 'awaiting_discard' || combatState.phase === 'awaiting_return_to_deck') ? handleSelectionClick(card.instanceId) : (isPlayable && handleCardClick(card))}
                                 >
                                     <Card
-                                        card={card}
-                                        stats={playerStats}
-                                        className={`${!isPlayable && !isSelectionPhase ? 'opacity-50 filter grayscale' : 'cursor-pointer'} ${isSelectedForAction ? 'ring-4 ring-yellow-400' : ''} ${isSelectedForSelection ? 'ring-4 ring-yellow-400' : ''}`}
+                                        card={card} stats={playerStats}
+                                        className={`${!isPlayable && !isSelectionPhase ? 'opacity-50 filter grayscale' : 'cursor-pointer'} ${isSelectedForAction ? 'ring-4 ring-yellow-400' : ''} ${selectedInstanceIds.includes(card.instanceId) ? 'ring-4 ring-yellow-400' : ''}`}
                                         effectiveCost={effectiveCost}
                                     />
                                 </div>
@@ -723,40 +728,65 @@ const CombatView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className={`h-24 bg-black/50 backdrop-blur-md border-t border-cyan-500/20 flex items-center justify-between px-4 z-20 relative rounded-lg ${playerAnimationClass}`}>
-                    <div className="flex-1 flex items-center gap-4 text-lg">
-                        <div className="flex items-center gap-2" title="抽牌堆">
-                            <DocumentDuplicateIcon className="w-6 h-6 text-gray-400" />
-                            <span className="font-mono font-bold">{combatState.deck.length}</span>
-                        </div>
-                         <div className="flex items-center gap-2" title="弃牌堆">
-                            <ArchiveBoxIcon className="w-6 h-6 text-gray-400" />
-                            <span className="font-mono font-bold">{combatState.discard.length}</span>
+                {/* Combined HUD for Mobile and Desktop */}
+                <div className={`h-24 bg-black/50 backdrop-blur-md border-t border-blue-500/20 flex items-center justify-between px-4 z-20 relative rounded-lg ${playerAnimationClass}`}>
+                    {/* Left Side */}
+                    <div className="flex-1 flex items-center gap-3 md:gap-4 text-lg">
+                        <div className="flex items-center gap-2" title="抽牌堆/弃牌堆">
+                            <RectangleStackIcon className="w-6 h-6 text-gray-400" />
+                            <span className="font-mono font-bold text-sm">{combatState.deck.length}/{combatState.discard.length}</span>
                         </div>
                          <div className="flex items-center gap-2 text-blue-300" title="潮汐计数">
                             <span className="font-bold text-sm">潮汐</span>
                             <span className="font-mono font-bold">{tideDisplay}/3</span>
                         </div>
-                         {combatState.block > 0 && <div className="flex items-center gap-2 text-blue-400" title="格挡">
+                    </div>
+
+                    {/* Center */}
+                    <div className="flex-shrink-0 mx-2 md:mx-4 flex flex-col items-center">
+                        <div className="flex items-center gap-2 text-blue-300 font-mono font-bold text-xl mb-1">
+                          <CpuChipIcon className="w-6 h-6" />
+                          <span>{player.cp} / {playerStats.maxCp}</span>
+                        </div>
+                       {renderEndTurnButton()}
+                    </div>
+
+                    {/* Right Side */}
+                    <div className="flex-1 flex justify-end items-center space-x-1 h-8">
+                         {combatState.block > 0 && <div className="hidden md:flex items-center gap-2 text-blue-400" title="格挡">
                             <ShieldCheckIcon className="w-6 h-6" />
                             <span className="font-mono font-bold">{combatState.block}</span>
                         </div>}
-                         {player.charge > 0 && <div className="flex items-center gap-2 text-orange-400" title="充能">
+                         {player.charge > 0 && <div className="hidden md:flex items-center gap-2 text-orange-400" title="充能">
                             <span className="font-bold text-sm">⚡</span>
                             <span className="font-mono font-bold">{player.charge}</span>
                         </div>}
-                    </div>
-                    <div className="flex-shrink-0 mx-4">
-                       {renderEndTurnButton()}
-                    </div>
-                    <div className="flex-1 flex justify-end space-x-1 h-8">
                          {player.statusEffects.map(effect => <StatusEffectIcon key={effect.id + effect.duration} effect={effect} parentAnimationClass={playerAnimationClass} />)}
                     </div>
                 </div>
             </div>
 
-             <div className="flex-shrink-0">
-                <CombatLog log={combatState.log} />
+            {/* Right Panel for Desktop */}
+            <div className="flex-shrink-0 w-64 bg-gray-900/70 border-l border-gray-700 hidden md:flex flex-col">
+                <div className="flex-1 h-1/2 flex flex-col p-2 overflow-hidden">
+                    <h2 className="text-center font-bold text-gray-400 border-b border-gray-600 pb-1 mb-2 flex-shrink-0">战斗记录</h2>
+                    <div className="flex-grow overflow-y-auto pr-1 text-sm space-y-1">
+                        {combatState.log.map(entry => (
+                            <p key={entry.id} className={entry.color || 'text-gray-300'}>{entry.text}</p>
+                        ))}
+                        <div ref={logEndRef} />
+                    </div>
+                </div>
+                <div className="flex-none h-1/2 border-t border-gray-700 p-2 flex flex-col">
+                    <h2 className="text-center font-bold text-gray-400 border-b border-gray-600 pb-1 mb-2 flex-shrink-0">卡牌详情</h2>
+                    <div className="flex-grow flex items-center justify-center p-2">
+                        {hoveredCardInfo ? (
+                            <Card card={hoveredCardInfo.card as CombatCard} stats={hoveredCardInfo.stats} />
+                        ) : (
+                            <p className="text-gray-500 text-center text-sm p-4">[ 将鼠标悬停在卡牌上以查看详情 ]</p>
+                        )}
+                    </div>
+                </div>
             </div>
             <CardChoiceOverlay />
             <EffectChoiceOverlay />

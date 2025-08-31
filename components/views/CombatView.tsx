@@ -368,6 +368,7 @@ const CombatView: React.FC = () => {
     const { state, dispatch } = useGame();
     const { player, combatState, customCards, customEquipment } = state;
     const [selectedCardInstanceId, setSelectedCardInstanceId] = useState<string | null>(null);
+    const [mobileSelectedCardId, setMobileSelectedCardId] = useState<string | null>(null);
     const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
     const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
     const [mobileHoveredCardIndex, setMobileHoveredCardIndex] = useState<number | null>(null);
@@ -379,6 +380,14 @@ const CombatView: React.FC = () => {
     const [shake, setShake] = useState(false);
     const [isHandDrawerOpen, setIsHandDrawerOpen] = useState(false);
     const [showMobileLog, setShowMobileLog] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const playerTrigger = combatState?.animationTriggers['player'];
     useEffect(() => {
@@ -402,6 +411,8 @@ const CombatView: React.FC = () => {
 
         if (combatState.phase === 'player_turn' && (combatState.turn !== prevTurnRef.current || prevPhaseRef.current !== 'player_turn')) {
             setBannerText('你的回合');
+            setSelectedCardInstanceId(null);
+            setMobileSelectedCardId(null);
             const timer = setTimeout(() => setBannerText(null), 1500);
             return () => clearTimeout(timer);
         } else if (combatState.phase === 'enemy_turn' && prevPhaseRef.current === 'player_turn') {
@@ -460,7 +471,7 @@ const CombatView: React.FC = () => {
     if (!combatState) return <div>Loading Combat...</div>;
     
     const selectedCard = selectedCardInstanceId ? combatState.hand.find(c => c.instanceId === selectedCardInstanceId) : null;
-    const isTargeting = selectedCard && selectedCard.effect.target !== 'self';
+    const isTargeting = selectedCard;
     const handSize = combatState.hand.length;
 
     const isCardPlayable = (card: CombatCard) => {
@@ -478,10 +489,7 @@ const CombatView: React.FC = () => {
 
     const handleCardPlay = (cardInstanceId: string, targetId?: string) => {
         const card = combatState.hand.find(c => c.instanceId === cardInstanceId);
-        if (!card || !isCardPlayable(card)) {
-            setSelectedCardInstanceId(null);
-            return;
-        }
+        if (!card) return;
 
         setAnimatingPlayedCard(card);
         setTimeout(() => {
@@ -490,17 +498,29 @@ const CombatView: React.FC = () => {
 
         dispatch({ type: 'PLAY_CARD', payload: { cardInstanceId, targetId } });
         setSelectedCardInstanceId(null);
+        setMobileSelectedCardId(null);
         setIsHandDrawerOpen(false); // Close drawer on card play
     };
 
     const handleCardClick = (card: CombatCard) => {
-        if (isSelectionPhase) return;
-        if (combatState.phase !== 'player_turn') return;
+        if (isSelectionPhase || combatState.phase !== 'player_turn' || !isCardPlayable(card)) return;
 
-        if (card.effect.target === 'self' || card.effect.target === 'all_enemies' || card.effect.target === 'random_enemy' || card.effect.generateCardChoice || card.effect.choiceEffect || card.effect.deployConstruct) {
-            handleCardPlay(card.instanceId, selectedTargetId ?? undefined);
-        } else {
-            setSelectedCardInstanceId(card.instanceId);
+        const needsTarget = card.effect.target === 'enemy' || card.effect.target === 'designated_target';
+        
+        if (isMobile) {
+            if (needsTarget) {
+                setSelectedCardInstanceId(card.instanceId);
+                setMobileSelectedCardId(null);
+            } else {
+                setSelectedCardInstanceId(null);
+                setMobileSelectedCardId(card.instanceId);
+            }
+        } else { // Desktop
+            if (needsTarget) {
+                setSelectedCardInstanceId(card.instanceId);
+            } else {
+                handleCardPlay(card.instanceId, selectedTargetId ?? undefined);
+            }
         }
     };
 
@@ -594,6 +614,28 @@ const CombatView: React.FC = () => {
     const tideDisplay = (player.tideCounter % 3 === 0 && player.tideCounter > 0) ? 3 : player.tideCounter % 3;
 
     const renderEndTurnButton = () => {
+        const mobileSelectedCardForConfirmation = isMobile && mobileSelectedCardId ? combatState.hand.find(c => c.instanceId === mobileSelectedCardId) : null;
+        if (mobileSelectedCardForConfirmation) {
+            return (
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => {
+                            handleCardPlay(mobileSelectedCardForConfirmation.instanceId, selectedTargetId ?? undefined);
+                        }}
+                        className="px-6 py-2 bg-green-600 text-white font-bold rounded-md hover:bg-green-500 transition-all duration-300 text-base"
+                    >
+                        使用
+                    </button>
+                    <button
+                        onClick={() => setMobileSelectedCardId(null)}
+                        className="px-6 py-2 bg-gray-600 text-white font-bold rounded-md hover:bg-gray-500 transition-all duration-300 text-base"
+                    >
+                        取消
+                    </button>
+                </div>
+            );
+        }
+
         if (combatState.phase === 'awaiting_discard' || combatState.phase === 'awaiting_return_to_deck') {
             const action = combatState.phase === 'awaiting_discard' ? combatState.discardAction! : combatState.returnToDeckAction!;
             const isReady = selectedInstanceIds.length === action.count;
@@ -669,6 +711,11 @@ const CombatView: React.FC = () => {
                         <h2 className="text-3xl font-bold text-yellow-300 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
                             {combatState.phase === 'awaiting_discard' ? `选择 ${combatState.discardAction?.count} 张牌弃置` : `选择 ${combatState.returnToDeckAction?.count} 张牌返回牌库`}
                         </h2>
+                    </div>
+                )}
+                 {isMobile && isTargeting && (
+                    <div className="absolute bottom-[11rem] left-0 right-0 text-center p-2 bg-yellow-900/80 text-yellow-200 z-40 animate-fadeIn">
+                        请在战场上选择一个目标
                     </div>
                 )}
 
@@ -838,7 +885,7 @@ const CombatView: React.FC = () => {
                                     else if (isPlayable) handleCardClick(card);
                                 }}
                             >
-                                <MobileCard card={card} stats={playerStats} effectiveCost={effectiveCost} className={`${!isPlayable && !isSelectionPhase ? 'opacity-50 filter grayscale' : 'cursor-pointer'} ${selectedCardInstanceId === card.instanceId || selectedInstanceIds.includes(card.instanceId) ? 'ring-2 ring-yellow-400' : ''}`} />
+                                <MobileCard card={card} stats={playerStats} effectiveCost={effectiveCost} className={`${!isPlayable && !isSelectionPhase ? 'opacity-50 filter grayscale' : 'cursor-pointer'} ${selectedCardInstanceId === card.instanceId || selectedInstanceIds.includes(card.instanceId) || mobileSelectedCardId === card.instanceId ? 'ring-2 ring-yellow-400' : ''}`} />
                             </div>
                         )
                     })}

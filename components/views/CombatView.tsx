@@ -552,7 +552,7 @@ const CombatView: React.FC = () => {
     const getDesktopCardStyle = (index: number): CSSProperties => {
         const isHovered = hoveredCardIndex === index;
         const totalCards = handSize;
-        const baseOverlap = totalCards > 6 ? -80 : -50;
+        const baseOverlap = totalCards > 6 ? -80 : -60;
         const hoverShift = 30;
 
         let xOffset = 0;
@@ -579,7 +579,8 @@ const CombatView: React.FC = () => {
 
     const getMobileCardStyle = (index: number): CSSProperties => {
         const isHovered = mobileHoveredCardIndex === index;
-        const baseOverlap = -80;
+        const totalCards = handSize;
+        const baseOverlap = -35 - totalCards * 4;
         const hoverShift = 30;
 
         let xOffset = 0;

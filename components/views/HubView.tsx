@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useGame } from '../../contexts/GameContext';
 import { EQUIPMENT, CARDS, MISSIONS, SYNC_COSTS, DECK_SIZE, CARDS as ALL_CARDS_SOURCE } from '../../constants';
 import { Mission, EquipmentSlot, Card as CardType, CardRarity, Equipment, PlayerStats } from '../../types';
@@ -128,6 +128,7 @@ const HubView: React.FC = () => {
     const [isMobile, setIsMobile] = useState(false);
     const [detailCardId, setDetailCardId] = useState<string | null>(null);
     const [detailItemId, setDetailItemId] = useState<string | null>(null);
+    const longPressTimer = useRef<number | null>(null);
 
     // Deck Editor State
     const [selectedDeckId, setSelectedDeckId] = useState(player.activeDeckId || '1');
@@ -174,10 +175,6 @@ const HubView: React.FC = () => {
         });
     }, [searchTerm, selectedKeyword, cardCollectionCounts, allCardsSource]);
         
-    const handleCardPress = (cardId: string) => {
-        if (isMobile) setDetailCardId(cardId);
-    };
-
     const handleMouseLeave = () => setActiveTooltip(null);
 
     const handleItemMouseEnter = (e: React.MouseEvent<HTMLDivElement>, itemId: string) => {
@@ -219,6 +216,35 @@ const HubView: React.FC = () => {
         setShowRestartConfirm(false);
     };
 
+    // --- Mobile Long Press Handlers ---
+    const handleCardPressStart = (cardId: string) => {
+        if (!isMobile) return;
+        longPressTimer.current = window.setTimeout(() => {
+            setDetailCardId(cardId);
+        }, 300);
+    };
+    const handleCardPressEnd = () => {
+        if (!isMobile) return;
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+        }
+        setDetailCardId(null);
+    };
+
+    const handleItemPressStart = (itemId: string) => {
+        if (!isMobile) return;
+        longPressTimer.current = window.setTimeout(() => {
+            setDetailItemId(itemId);
+        }, 300);
+    };
+    const handleItemPressEnd = () => {
+        if (!isMobile) return;
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+        }
+        setDetailItemId(null);
+    };
+
     const MissionCard = ({ mission }: { mission: Mission }) => (
         <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-cyan-500 hover:bg-gray-800 transition-all flex flex-col">
             <h3 className={`text-xl font-bold ${mission.type === 'main' ? 'text-cyan-400' : 'text-purple-400'}`}>{mission.title}</h3>
@@ -246,9 +272,9 @@ const HubView: React.FC = () => {
                         className="flex items-center justify-between"
                         onMouseEnter={(e) => handleItemMouseEnter(e, item.id)}
                         onMouseLeave={handleMouseLeave}
-                        onTouchStart={() => isMobile && setDetailItemId(item.id)}
-                        onTouchEnd={() => isMobile && setDetailItemId(null)}
-                        onTouchCancel={() => isMobile && setDetailItemId(null)}
+                        onTouchStart={() => handleItemPressStart(item.id)}
+                        onTouchEnd={handleItemPressEnd}
+                        onTouchCancel={handleItemPressEnd}
                     >
                         <span className={`font-semibold ${getRarityColor(item.rarity)}`}>{item.name}</span>
                         <button 
@@ -354,9 +380,9 @@ const HubView: React.FC = () => {
                                                 className="bg-gray-800 p-2 rounded flex items-center justify-between"
                                                 onMouseEnter={(e) => handleCardMouseEnter(e, cardId)}
                                                 onMouseLeave={handleMouseLeave}
-                                                onTouchStart={() => handleCardPress(cardId)}
-                                                onTouchEnd={() => setDetailCardId(null)}
-                                                onTouchCancel={() => setDetailCardId(null)}
+                                                onTouchStart={() => handleCardPressStart(cardId)}
+                                                onTouchEnd={handleCardPressEnd}
+                                                onTouchCancel={handleCardPressEnd}
                                             >
                                                 <span className={`text-sm font-semibold ${getRarityColor(card.rarity)}`}>{card.name}</span>
                                                 <button onClick={() => dispatch({ type: 'REMOVE_FROM_DECK', payload: { cardId, deckId: selectedDeckId, cardIndex: index } })} onTouchStart={e => e.stopPropagation()} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded transition-transform transform active:scale-95">移除</button>
@@ -401,9 +427,9 @@ const HubView: React.FC = () => {
                                             <div key={cardId} className="bg-gray-800 p-2 rounded flex items-center justify-between"
                                                 onMouseEnter={(e) => handleCardMouseEnter(e, cardId)}
                                                 onMouseLeave={handleMouseLeave}
-                                                onTouchStart={() => handleCardPress(cardId)}
-                                                onTouchEnd={() => setDetailCardId(null)}
-                                                onTouchCancel={() => setDetailCardId(null)}
+                                                onTouchStart={() => handleCardPressStart(cardId)}
+                                                onTouchEnd={handleCardPressEnd}
+                                                onTouchCancel={handleCardPressEnd}
                                             >
                                                 <span className={`text-sm font-semibold ${getRarityColor(card.rarity)}`}>{card.name} <span className="text-gray-400 font-mono text-xs">x{count}</span></span>
                                                 <div className="flex items-center gap-2">
@@ -445,10 +471,12 @@ const HubView: React.FC = () => {
                                                 const item = allEquipmentSource[itemId];
                                                 if (!item) return null;
                                                 return (
-                                                <div key={itemId} className={`bg-gray-800 p-2 rounded flex flex-col justify-between border-l-4 ${getRarityBorder(item.rarity)}`} onMouseEnter={(e) => handleItemMouseEnter(e, itemId)} onMouseLeave={handleMouseLeave}
-                                                    onTouchStart={() => isMobile && setDetailItemId(itemId)}
-                                                    onTouchEnd={() => isMobile && setDetailItemId(null)}
-                                                    onTouchCancel={() => isMobile && setDetailItemId(null)}
+                                                <div key={itemId} className={`bg-gray-800 p-2 rounded flex flex-col justify-between border-l-4 ${getRarityBorder(item.rarity)}`} 
+                                                    onMouseEnter={(e) => handleItemMouseEnter(e, itemId)} 
+                                                    onMouseLeave={handleMouseLeave}
+                                                    onTouchStart={() => handleItemPressStart(itemId)}
+                                                    onTouchEnd={handleItemPressEnd}
+                                                    onTouchCancel={handleItemPressEnd}
                                                 >
                                                     <span className={`text-sm font-semibold ${getRarityColor(item.rarity)}`}>{item.name}</span>
                                                     <div className="flex items-center gap-2 mt-2 self-end">

@@ -270,7 +270,7 @@ const EnemySprite: React.FC<{
                 <div className="bg-red-500 h-3 rounded-full transition-all duration-500" style={{ width: `${hpPercentage}%` }}></div>
                 <span className="absolute inset-0 w-full text-center text-xs font-mono text-white">{enemy.hp}/{enemy.maxHp}</span>
             </div>
-            <div className="flex space-x-1 mt-2 h-8">
+            <div className="flex flex-wrap justify-center space-x-1 mt-2 h-auto">
                 {enemy.statusEffects.map(effect => <StatusEffectIcon key={effect.id + effect.duration} effect={effect} parentAnimationClass={animationClass} />)}
             </div>
         </div>
@@ -499,11 +499,14 @@ const CombatView: React.FC = () => {
             const previousHandLength = prevHandLengthRef.current;
             
             if (previousHandLength !== undefined && currentHandLength < previousHandLength) {
-                if (currentHandLength > 0) {
-                    setIsHandDrawerOpen(true);
-                } else {
-                    setIsHandDrawerOpen(false);
-                }
+                // A card was played. Add a slight delay to allow animations to feel more natural.
+                setTimeout(() => {
+                    if (currentHandLength > 0) {
+                        setIsHandDrawerOpen(true);
+                    } else {
+                        setIsHandDrawerOpen(false);
+                    }
+                }, 400);
             }
             prevHandLengthRef.current = currentHandLength;
         } else if (combatState) {
@@ -910,7 +913,9 @@ const CombatView: React.FC = () => {
                     <div className="flex-1 flex justify-end items-center flex-wrap gap-2">
                          {combatState.block > 0 && <div className="flex items-center gap-2 text-blue-400" title="格挡"><ShieldCheckIcon className="w-6 h-6" /><span className="font-mono font-bold">{combatState.block}</span></div>}
                          {player.charge > 0 && <div className="flex items-center gap-2 text-orange-400" title="充能"><span className="font-bold text-sm">⚡</span><span className="font-mono font-bold">{player.charge}</span></div>}
-                         {player.statusEffects.map(effect => <StatusEffectIcon key={effect.id + effect.duration} effect={effect} parentAnimationClass={playerAnimationClass} />)}
+                         <div className="flex flex-wrap justify-end gap-1">
+                            {player.statusEffects.map(effect => <StatusEffectIcon key={effect.id + effect.duration} effect={effect} parentAnimationClass={playerAnimationClass} />)}
+                         </div>
                     </div>
                 </div>
             </div>
@@ -959,7 +964,9 @@ const CombatView: React.FC = () => {
                         {renderEndTurnButton()}
                     </div>
                     <div className="flex-1 flex justify-end items-center flex-wrap gap-1">
-                         {player.statusEffects.map(effect => <StatusEffectIcon key={effect.id + effect.duration} effect={effect} parentAnimationClass={playerAnimationClass} />)}
+                         <div className="flex flex-wrap justify-end gap-1">
+                            {player.statusEffects.map(effect => <StatusEffectIcon key={effect.id + effect.duration} effect={effect} parentAnimationClass={playerAnimationClass} />)}
+                         </div>
                     </div>
                 </div>
                 <div 

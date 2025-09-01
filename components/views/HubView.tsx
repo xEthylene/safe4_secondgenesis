@@ -1,13 +1,8 @@
 
-
-
-
-
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useGame } from '../../contexts/GameContext';
 import { EQUIPMENT, CARDS, MISSIONS, SYNC_COSTS, DECK_SIZE, CARDS as ALL_CARDS_SOURCE } from '../../constants';
-import { Mission, EquipmentSlot, Card, CardRarity, Equipment } from '../../types';
+import { Mission, EquipmentSlot, Card as CardType, CardRarity, Equipment, PlayerStats } from '../../types';
 import { getEffectivePlayerStats } from '../../utils/playerUtils';
 import { Cog6ToothIcon, CubeTransparentIcon, ShieldCheckIcon, SparklesIcon, RectangleStackIcon, ArrowPathIcon, ExclamationTriangleIcon, BookOpenIcon, ComputerDesktopIcon, AdjustmentsHorizontalIcon, XMarkIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import { getDynamicCardDescription } from '../../utils/cardUtils';
@@ -28,6 +23,31 @@ const getRarityBorder = (rarity: CardRarity) => {
         case CardRarity.EPIC: return 'border-purple-600';
         default: return 'border-gray-700';
     }
+};
+
+const getRarityColorStyle = (rarity: CardRarity, bg: boolean = true) => {
+    switch (rarity) {
+        case CardRarity.COMMON: return `border-gray-500 ${bg ? 'bg-gray-800' : ''}`;
+        case CardRarity.RARE: return `border-blue-500 ${bg ? 'bg-blue-900' : ''}`;
+        case CardRarity.EPIC: return `border-purple-600 ${bg ? 'bg-purple-900' : ''}`;
+        default: return `border-gray-700 ${bg ? 'bg-gray-800' : ''}`;
+    }
+};
+
+const Card: React.FC<{ card: CardType; stats?: Partial<PlayerStats>; }> = ({ card, stats }) => {
+    const description = stats ? getDynamicCardDescription(card, stats) : card.description;
+    return (
+        <div
+            className={`w-full h-full border-4 ${getRarityColorStyle(card.rarity)} rounded-lg p-3 flex flex-col justify-between text-left shadow-lg`}
+        >
+            <div>
+                <h3 className="font-bold text-sm md:text-base text-white">{card.name}</h3>
+                <p className="text-xs text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
+            </div>
+            <p className="text-xs md:text-sm text-gray-200 flex-grow mt-2">{description}</p>
+            <p className="text-base md:text-lg font-bold text-cyan-400 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} HP` : `${card.cost} CP`}</p>
+        </div>
+    )
 };
 
 const TABS = [
@@ -88,11 +108,21 @@ const HubView: React.FC = () => {
     const [showRestartConfirm, setShowRestartConfirm] = useState(false);
     const [showRulebook, setShowRulebook] = useState(false);
     
+    const [isMobile, setIsMobile] = useState(false);
+    const [detailCardId, setDetailCardId] = useState<string | null>(null);
+
     // Deck Editor State
     const [selectedDeckId, setSelectedDeckId] = useState(player.activeDeckId || '1');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedKeyword, setSelectedKeyword] = useState('');
     const [showKeywordModal, setShowKeywordModal] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const effectiveStats = getEffectivePlayerStats(player, customEquipment);
     const allEquipmentSource = { ...EQUIPMENT, ...customEquipment };
@@ -126,9 +156,14 @@ const HubView: React.FC = () => {
         });
     }, [searchTerm, selectedKeyword, cardCollectionCounts, allCardsSource]);
         
+    const handleCardClick = (cardId: string) => {
+        if (isMobile) setDetailCardId(cardId);
+    };
+
     const handleMouseLeave = () => setActiveTooltip(null);
 
     const handleItemMouseEnter = (e: React.MouseEvent<HTMLDivElement>, itemId: string) => {
+        if (isMobile) return;
         const item = allEquipmentSource[itemId];
         if (!item) return;
         const rect = e.currentTarget.getBoundingClientRect();
@@ -146,6 +181,7 @@ const HubView: React.FC = () => {
     };
 
     const handleCardMouseEnter = (e: React.MouseEvent<HTMLDivElement>, cardId: string) => {
+        if (isMobile) return;
         const card = allCardsSource[cardId];
         if (!card) return;
         const rect = e.currentTarget.getBoundingClientRect();
@@ -296,6 +332,7 @@ const HubView: React.FC = () => {
                                                 className="bg-gray-800 p-2 rounded flex items-center justify-between"
                                                 onMouseEnter={(e) => handleCardMouseEnter(e, cardId)}
                                                 onMouseLeave={handleMouseLeave}
+                                                onClick={() => handleCardClick(cardId)}
                                             >
                                                 <span className={`text-sm font-semibold ${getRarityColor(card.rarity)}`}>{card.name}</span>
                                                 <button onClick={() => dispatch({ type: 'REMOVE_FROM_DECK', payload: { cardId, deckId: selectedDeckId, cardIndex: index } })} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded transition-transform transform active:scale-95">移除</button>
@@ -337,7 +374,11 @@ const HubView: React.FC = () => {
                                         const canDecompose = count > totalDeckCount;
 
                                         return (
-                                            <div key={cardId} className="bg-gray-800 p-2 rounded flex items-center justify-between" onMouseEnter={(e) => handleCardMouseEnter(e, cardId)} onMouseLeave={handleMouseLeave}>
+                                            <div key={cardId} className="bg-gray-800 p-2 rounded flex items-center justify-between"
+                                                onMouseEnter={(e) => handleCardMouseEnter(e, cardId)}
+                                                onMouseLeave={handleMouseLeave}
+                                                onClick={() => handleCardClick(cardId)}
+                                            >
                                                 <span className={`text-sm font-semibold ${getRarityColor(card.rarity)}`}>{card.name} <span className="text-gray-400 font-mono text-xs">x{count}</span></span>
                                                 <div className="flex items-center gap-2">
                                                     <button onClick={() => dispatch({ type: 'ADD_TO_DECK', payload: { cardId, deckId: selectedDeckId } })} disabled={isDeckFull || !canAdd} className="text-xs bg-blue-800 enabled:hover:bg-blue-700 px-2 py-1 rounded disabled:opacity-50 transition-transform transform active:scale-95">添加</button>
@@ -434,9 +475,19 @@ const HubView: React.FC = () => {
 
     return (
         <div className="pt-20 h-full flex flex-col">
-            {activeTooltip && (
+            {activeTooltip && !isMobile && (
                 <div className="fixed p-2 text-xs text-left text-white bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 pointer-events-none w-64" style={{ top: activeTooltip.top, left: activeTooltip.left, transform: activeTooltip.type === 'item' ? 'translate(-50%, -100%) translateY(-8px)' : 'translateX(8px)' }}>
                     {activeTooltip.content}
+                </div>
+            )}
+            {isMobile && detailCardId && (
+                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setDetailCardId(null)}>
+                     <div className="w-64 h-80" onClick={e => e.stopPropagation()}>
+                        {(() => {
+                           const card = allCardsSource[detailCardId];
+                           return card ? <Card card={card} stats={effectiveStats} /> : null;
+                        })()}
+                    </div>
                 </div>
             )}
              {showRestartConfirm && (

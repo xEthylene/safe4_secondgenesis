@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import React, { createContext, useReducer, useContext, ReactNode, useEffect } from 'react';
 import { GameState, GameAction, GameStatus, Enemy, Character, StatusEffect, EquipmentSlot, PlayerState, PlayerStats, Equipment, Card, CardRarity, AnimationType, AffixEffect, CardEffect, CombatCard, CombatState, Construct } from '../types';
 import { PLAYER_INITIAL_STATS, ENEMIES, CARDS, STATUS_EFFECTS, EQUIPMENT, ENEMY_CARDS, MISSIONS, MAX_COPIES_PER_RARITY, SYNC_COSTS, COMBAT_SETTINGS, CONSTRUCTS, AGGRO_SETTINGS, DECK_SIZE } from '../constants';
@@ -1624,7 +1619,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                 ...immediateEffect
             } = card.effect;
     
-            processCardEffect(immediateEffect, card.id, targetId);
+            processCardEffect(immediateEffect as CardEffect, card.id, targetId);
 
             if (card.effect.choiceEffect) {
                 draft.combatState.phase = 'awaiting_effect_choice';
@@ -2480,7 +2475,9 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
           
           let totalDeckCount = 0;
           Object.values(draft.player.decks).forEach(deck => {
-              totalDeckCount += deck.filter(c => c === cardId).length;
+              if(Array.isArray(deck)) {
+                totalDeckCount += deck.filter(c => c === cardId).length;
+              }
           });
           
           if (collectionCount > totalDeckCount) {

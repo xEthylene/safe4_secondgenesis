@@ -44,14 +44,14 @@ const MobileCard: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; cla
     return (
         <div
             style={style}
-            className={`w-28 h-40 border-2 ${getRarityColor(card.rarity)} rounded-md p-2 flex flex-col justify-between text-left shadow-md backdrop-blur-sm ${className}`}
+            className={`w-24 h-36 border-2 ${getRarityColor(card.rarity)} rounded-md p-1.5 flex flex-col justify-between text-left shadow-md backdrop-blur-sm ${className}`}
         >
             <div>
-                <h3 className="font-bold text-xs text-white truncate">{card.name}</h3>
-                <p className="text-[10px] text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
+                <h3 className="font-bold text-[11px] text-white truncate">{card.name}</h3>
+                <p className="text-[9px] text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
             </div>
-            <p className="text-[11px] text-gray-200 flex-grow mt-1 whitespace-pre-wrap overflow-hidden">{description}</p>
-            <p className="text-base font-bold text-blue-300 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
+            <p className="text-[10px] text-gray-200 flex-grow mt-1 whitespace-pre-wrap overflow-hidden leading-tight">{description}</p>
+            <p className="text-sm font-bold text-blue-300 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
         </div>
     )
 };
@@ -182,9 +182,10 @@ const EnemySprite: React.FC<{
     actionCards: CardType[] | null; 
     isAttacking: boolean; 
     currentActionIndex: number;
-    onActionIntentEnter: (card: CardType, enemy: Enemy) => void;
+    onActionIntentHover: (card: CardType, enemy: Enemy) => void;
     onActionIntentLeave: () => void;
-}> = ({ enemy, isSelected, onSelect, isTargeting, actionCards, isAttacking, currentActionIndex, onActionIntentEnter, onActionIntentLeave }) => {
+    onActionIntentClick: (card: CardType, enemy: Enemy) => void;
+}> = ({ enemy, isSelected, onSelect, isTargeting, actionCards, isAttacking, currentActionIndex, onActionIntentHover, onActionIntentLeave, onActionIntentClick }) => {
     const hpPercentage = (enemy.hp / enemy.maxHp) * 100;
     const { animationClass, floatingTexts } = useCombatEntityAnimation(enemy.id, enemy.hp, enemy.block);
     
@@ -207,8 +208,9 @@ const EnemySprite: React.FC<{
                  {!isAttacking && actionCards && actionCards.map((card, index) => (
                     <div
                         key={index}
-                        onMouseEnter={() => onActionIntentEnter(card, enemy)}
+                        onMouseEnter={() => onActionIntentHover(card, enemy)}
                         onMouseLeave={onActionIntentLeave}
+                        onClick={(e) => { e.stopPropagation(); onActionIntentClick(card, enemy); }}
                     >
                         <ActionIntentIcon card={card} enemy={enemy} />
                     </div>
@@ -373,6 +375,7 @@ const CombatView: React.FC = () => {
     const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
     const [mobileHoveredCardIndex, setMobileHoveredCardIndex] = useState<number | null>(null);
     const [hoveredCardInfo, setHoveredCardInfo] = useState<{ card: CardType; stats: Partial<PlayerStats> } | null>(null);
+    const [mobileDetailCard, setMobileDetailCard] = useState<{ card: CardType; stats: Partial<PlayerStats> } | null>(null);
     const [animatingPlayedCard, setAnimatingPlayedCard] = useState<CombatCard | null>(null);
     
     const [selectedInstanceIds, setSelectedInstanceIds] = useState<string[]>([]);
@@ -430,12 +433,12 @@ const CombatView: React.FC = () => {
 
     const isSelectionPhase = combatState?.phase === 'awaiting_discard' || combatState?.phase === 'awaiting_return_to_deck' || combatState?.phase === 'awaiting_effect_choice';
 
-    const handleActionIntentEnter = (card: CardType, enemy: Enemy) => {
-        setHoveredCardInfo({ card, stats: { attack: enemy.attack, defense: enemy.defense } });
+    const handleActionIntentHover = (card: CardType, enemy: Enemy) => {
+        if (!isMobile) setHoveredCardInfo({ card, stats: { attack: enemy.attack, defense: enemy.defense } });
     };
-
-    const handleActionIntentLeave = () => {
-        setHoveredCardInfo(null);
+    const handleActionIntentLeave = () => setHoveredCardInfo(null);
+    const handleActionIntentClick = (card: CardType, enemy: Enemy) => {
+        if (isMobile) setMobileDetailCard({ card, stats: { attack: enemy.attack, defense: enemy.defense } });
     };
 
     useEffect(() => {
@@ -696,6 +699,13 @@ const CombatView: React.FC = () => {
                     </div>
                 </div>
             )}
+            {isMobile && mobileDetailCard && (
+                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-fadeIn" onClick={() => setMobileDetailCard(null)}>
+                     <div className="w-48 h-64" onClick={e => e.stopPropagation()}>
+                         <Card card={mobileDetailCard.card as CombatCard} stats={mobileDetailCard.stats} />
+                     </div>
+                 </div>
+            )}
             <div className="md:hidden">
                 {(mobileHoveredCardIndex !== null) && (
                     <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] pointer-events-none p-2 animate-fadeIn">
@@ -723,8 +733,8 @@ const CombatView: React.FC = () => {
                      {playerFloatingTexts.map(ft => <FloatingText key={ft.id} text={ft.text} color={ft.color} />)}
                 </div>
                 
-                <div className="flex-grow flex flex-col justify-center items-center relative px-4 gap-2 md:gap-4 overflow-hidden pt-12">
-                     <div className="w-full flex justify-center items-end gap-2 md:gap-4">
+                <div className="flex-grow flex flex-col justify-center items-center relative px-2 overflow-hidden pt-8 md:pt-12">
+                     <div className="w-full grid grid-cols-3 gap-2 place-items-end md:flex md:flex-row md:items-end md:justify-center md:gap-4">
                         {combatState.enemies.map(enemy => (
                             <EnemySprite
                                 key={enemy.id} enemy={enemy}
@@ -734,11 +744,12 @@ const CombatView: React.FC = () => {
                                 isTargeting={!!isTargeting && !isSelectionPhase}
                                 isAttacking={combatState.attackingEnemyId === enemy.id}
                                 currentActionIndex={combatState.activeActionIndex}
-                                onActionIntentEnter={handleActionIntentEnter}
+                                onActionIntentHover={handleActionIntentHover}
                                 onActionIntentLeave={handleActionIntentLeave}
+                                onActionIntentClick={handleActionIntentClick}
                             />
                         ))}
-                        {[...enemyConstructs, ...playerConstructs].map(construct => (
+                        {[...playerConstructs, ...enemyConstructs].map(construct => (
                              <ConstructSprite 
                                 key={construct.instanceId} construct={construct}
                                 isSelected={selectedTargetId === construct.instanceId}
@@ -788,7 +799,7 @@ const CombatView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className={`hidden md:flex h-24 bg-black/50 backdrop-blur-md border-t border-blue-500/20 items-center justify-between px-4 z-20 relative rounded-lg flex-shrink-0 ${playerAnimationClass}`}>
+                <div className={`hidden md:flex h-24 bg-black/50 backdrop-blur-md border-t border-blue-500/20 items-center justify-between px-4 z-20 relative flex-shrink-0 ${playerAnimationClass}`}>
                     <div className="flex-1 flex items-center gap-3 md:gap-4 text-lg">
                         <div className="flex items-center gap-2" title="抽牌堆/弃牌堆">
                             <RectangleStackIcon className="w-6 h-6 text-gray-400" />
@@ -862,7 +873,7 @@ const CombatView: React.FC = () => {
                     </div>
                 </div>
                 <div 
-                    className="h-48 bg-gray-900/80 flex justify-center items-end pb-4 overflow-hidden" 
+                    className="h-48 bg-gray-900/80 flex justify-center items-end pb-4 overflow-x-auto px-4" 
                     onMouseLeave={() => setMobileHoveredCardIndex(null)}
                 >
                      {combatState.hand.map((card, index) => {

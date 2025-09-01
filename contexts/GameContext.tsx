@@ -1,7 +1,7 @@
 
 
 import React, { createContext, useReducer, useContext, ReactNode, useEffect } from 'react';
-import { GameState, GameAction, GameStatus, Enemy, Character, StatusEffect, EquipmentSlot, PlayerState, PlayerStats, Equipment, Card, CardRarity, AnimationType, AffixEffect, CardEffect, CombatCard, CombatState, Construct } from '../types';
+import { GameState, GameAction, GameStatus, Enemy, Character, StatusEffect, EquipmentSlot, PlayerState, PlayerStats, Equipment, Card, CardRarity, AnimationType, AffixEffect, CardEffect, CombatCard, CombatState, Construct, CombatEvent } from '../types';
 import { PLAYER_INITIAL_STATS, ENEMIES, CARDS, STATUS_EFFECTS, EQUIPMENT, ENEMY_CARDS, MISSIONS, MAX_COPIES_PER_RARITY, SYNC_COSTS, COMBAT_SETTINGS, CONSTRUCTS, AGGRO_SETTINGS, DECK_SIZE } from '../constants';
 import { produce, Draft } from 'immer';
 import { getEffectivePlayerStats } from '../utils/playerUtils';
@@ -30,6 +30,7 @@ const initialState: GameState = {
   newlyAcquiredEquipmentIds: [],
   isFirstCombatOfMission: true,
   sedimentGainedOnDefeat: 0,
+  combatStartInfo: undefined,
 };
 
 const loadState = (): GameState => {
@@ -81,6 +82,7 @@ const loadState = (): GameState => {
       isFirstCombatOfMission: loadedState.isFirstCombatOfMission !== undefined ? loadedState.isFirstCombatOfMission : true,
       missionStartState: loadedState.missionStartState || undefined,
       sedimentGainedOnDefeat: loadedState.sedimentGainedOnDefeat || 0,
+      combatStartInfo: loadedState.combatStartInfo || undefined,
     };
     
     if (typeof mergedState.status !== 'number' || !mergedState.player) {
@@ -109,8 +111,9 @@ let logIdCounter = 0;
 
 const gameReducer = (state: GameState, action: GameAction): GameState => {
   return produce(state, (draft: Draft<GameState>) => {
-    const allCards = { ...CARDS, ...draft.customCards, ...ENEMY_CARDS };
-    const allEquipment = { ...EQUIPMENT, ...draft.customEquipment };
+    // FIX: Converted stale variables to functions to ensure they always access the latest draft state.
+    const getAllCards = () => ({ ...CARDS, ...draft.customCards, ...ENEMY_CARDS });
+    const getAllEquipment = () => ({ ...EQUIPMENT, ...draft.customEquipment });
     
     const getStage = (): number => {
         return draft.player.completedMissions.length + 1;
@@ -258,7 +261,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                     if (totalBurn >= 15) {
                         addLog(`[薪火] 效果触发，抽1张牌并衍生[熔火之心]！`, 'text-yellow-500');
                         drawCards(1);
-                        const moltenHeartTemplate = allCards['molten_heart'];
+                        const moltenHeartTemplate = getAllCards()['molten_heart'];
                         if (moltenHeartTemplate) {
                             draft.combatState.hand.push({ ...moltenHeartTemplate, instanceId: `molten_heart_gen_${Date.now()}_${Math.random()}`, temporary: true });
                             checkForHandOverflow();
@@ -318,7 +321,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     const processConstructAction = (draft: Draft<GameState>, construct: Draft<Construct>, effectCard: {cardId: string, target: string}) => {
         if (!draft.combatState) return;
 
-        const card = allCards[effectCard.cardId];
+        const card = getAllCards()[effectCard.cardId];
         if (!card) return;
 
         let targetId: string | undefined;
@@ -465,7 +468,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         const allCardPiles: (keyof Pick<Draft<CombatState>, 'hand' | 'deck' | 'discard' | 'exhaust'>)[] = ['hand', 'deck', 'discard', 'exhaust'];
         allCardPiles.forEach(pileName => {
             draft.combatState[pileName].forEach(card => {
-                const cardTemplate = allCards[card.id];
+                const cardTemplate = getAllCards()[card.id];
                 if (cardTemplate.effect.costIncreaseOnUseThisTurn) {
                     card.costOverride = undefined;
                 }
@@ -540,7 +543,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             if (enemy.hp > 0) {
                 const hpPercent = enemy.hp / enemy.maxHp;
                 if (enemy.specialAction && !enemy.specialActionTriggered && hpPercent <= enemy.specialAction.hpThreshold) {
-                    const specialCard = allCards[enemy.specialAction.cardId];
+                    const specialCard = getAllCards()[enemy.specialAction.cardId];
                     if (specialCard) {
                         enemy.specialActionTriggered = true;
                         draft.combatState.enemyActions[enemy.id] = [specialCard];
@@ -569,12 +572,12 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                     const cardId = enemy.deck.pop();
                     if (cardId) {
                         enemy.hand.push(cardId);
-                        actions.push(allCards[cardId]);
+                        actions.push(getAllCards()[cardId]);
                     }
                 }
                 
                 if (isTideTurn && enemyTemplate.tideCard) {
-                    const tideCardTemplate = allCards[enemyTemplate.tideCard];
+                    const tideCardTemplate = getAllCards()[enemyTemplate.tideCard];
                     if (tideCardTemplate) {
                         actions.push(tideCardTemplate);
                         addLog(`潮汐涌动！ ${enemy.name} 准备发动特殊行动！`, 'text-red-300');
@@ -615,7 +618,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         if (!draft.combatState) return;
 
         const playerStats = getPlayerStats();
-        const card = allCards[sourceCardId];
+        const card = getAllCards()[sourceCardId];
 
         let targetEnemy: Draft<Enemy> | undefined;
         let targetConstruct: Draft<Construct> | undefined;
@@ -1128,7 +1131,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         }
         
         if (effect.addCardToHand) {
-            const newCard = allCards[effect.addCardToHand];
+            const newCard = getAllCards()[effect.addCardToHand];
             draft.combatState.hand.push({ ...newCard, instanceId: `${newCard.id}_${Date.now()}_${Math.random()}`});
             addLog(`你获得了 [${newCard.name}]。`, 'text-yellow-300');
             checkForHandOverflow();
@@ -1136,7 +1139,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
         if (effect.addCardToDeck) {
             effect.addCardToDeck.forEach(cardId => {
-                const newCard = allCards[cardId];
+                const newCard = getAllCards()[cardId];
                 draft.combatState.deck.push({ ...newCard, instanceId: `${newCard.id}_${Date.now()}_${Math.random()}` });
             });
             draft.combatState.deck = shuffle(draft.combatState.deck);
@@ -1144,7 +1147,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
         if (effect.addCardToDiscard) {
             effect.addCardToDiscard.forEach(cardId => {
-                const newCardTemplate = allCards[cardId];
+                const newCardTemplate = getAllCards()[cardId];
                 if (newCardTemplate) {
                     const newCard: CombatCard = {
                         ...newCardTemplate,
@@ -1216,6 +1219,75 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         }
     }
 
+    const setupCombat = (draft: Draft<GameState>, combatEvent: CombatEvent) => {
+        const stage = getStage();
+        const enemies = combatEvent.enemies.map((enemyId, index) => {
+            const enemyData = ENEMIES[enemyId];
+            const finalHp = Math.round(enemyData.maxHp * (1 + (stage - 1) * 0.08));
+            const finalAttack = Math.round(enemyData.attack * (1 + (stage - 1) * 0.06));
+
+            return {
+                ...enemyData,
+                id: `${enemyId}_${index}`,
+                hp: finalHp,
+                maxHp: finalHp,
+                attack: finalAttack,
+                deck: shuffle(enemyData.deck),
+                statusEffects: [],
+                hand: [],
+                discard: [],
+                exhaust: [],
+                block: 0,
+                tideCounter: 0,
+                specialAction: enemyData.specialAction,
+                specialActionTriggered: false,
+            };
+        });
+        
+        const deckToUse = draft.player.decks[draft.player.activeDeckId];
+        const initialDeck = draft.interimCombatState ? draft.interimCombatState.deck : shuffle(deckToUse).map(cardId => ({
+          ...getAllCards()[cardId],
+          instanceId: `${cardId}_${Date.now()}_${Math.random()}`
+        }));
+        const initialHand = draft.interimCombatState ? draft.interimCombatState.hand : [];
+        const initialDiscard = draft.interimCombatState ? draft.interimCombatState.discard : [];
+        const initialExhaust = draft.interimCombatState ? draft.interimCombatState.exhaust : [];
+        const initialConstructs = draft.interimCombatState?.constructs || [];
+        
+        draft.interimCombatState = undefined;
+        draft.player.tideCounter = 0;
+
+        draft.combatState = {
+            phase: 'player_turn',
+            enemies,
+            constructs: initialConstructs,
+            log: [{ id: logIdCounter++, text: '战斗开始！' }],
+            overclockCooldown: 0,
+            turn: 0,
+            deck: initialDeck,
+            hand: initialHand,
+            discard: initialDiscard,
+            exhaust: initialExhaust,
+            block: 0,
+            activeEnemyIndex: null,
+            enemyActions: {},
+            activeActionIndex: 0,
+            attackingEnemyId: null,
+            animationTriggers: {},
+            sparkCostModifier: 0,
+            cardsPlayedThisTurn: 0,
+            nextAttackCostModifier: 0,
+            firstAttackPlayedThisTurn: false,
+            firstDiscardThisTurn: false,
+            differentAttacksPlayed: [],
+            hpThresholdTriggered: false,
+            debuffsAppliedThisTurn: 0,
+            damageTakenThisTurn: 0,
+        };
+        
+        startPlayerTurn();
+    };
+
 
     switch (action.type) {
       case 'START_GAME':
@@ -1259,111 +1331,61 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         const mission = MISSIONS[draft.currentMissionId];
         if (!mission.events) break;
 
-        const currentEvent = mission.events[draft.currentEventIndex];
-        if (currentEvent.type === 'action') {
-            switch(currentEvent.action) {
-                case 'open_hub':
-                    if (!draft.player.completedMissions.includes(draft.currentMissionId)) {
-                        draft.player.completedMissions.push(draft.currentMissionId);
-                        draft.player.dreamSediment += mission.rewards.dreamSediment;
-                    }
-                    returnToHubAndReset();
-                    break;
-                case 'present_choice':
-                    draft.status = GameStatus.CHOICE_SCREEN;
-                    break;
-                case 'game_over':
-                    if (!draft.player.completedMissions.includes(draft.currentMissionId)) {
-                         draft.player.completedMissions.push(draft.currentMissionId);
-                         draft.player.dreamSediment += mission.rewards.dreamSediment;
-                    }
-                    draft.status = GameStatus.GAME_COMPLETE;
-                    break;
-            }
-            break;
-        }
-        
         const nextIndex = draft.currentEventIndex + 1;
+
         if (nextIndex >= mission.events.length) {
             draft.status = GameStatus.MISSION_VICTORY;
             break;
         }
-        
+
         draft.currentEventIndex = nextIndex;
         const nextEvent = mission.events[nextIndex];
-        
-        if (nextEvent.type === 'combat') {
-          draft.status = GameStatus.IN_MISSION_COMBAT;
-          
-          const stage = getStage();
-          const enemies = nextEvent.enemies.map((enemyId, index) => {
-              const enemyData = ENEMIES[enemyId];
-              const finalHp = Math.round(enemyData.maxHp * (1 + (stage - 1) * 0.08));
-              const finalAttack = Math.round(enemyData.attack * (1 + (stage - 1) * 0.06));
 
-              return {
-                  ...enemyData,
-                  id: `${enemyId}_${index}`,
-                  hp: finalHp,
-                  maxHp: finalHp,
-                  attack: finalAttack,
-                  deck: shuffle(enemyData.deck),
-                  statusEffects: [],
-                  hand: [],
-                  discard: [],
-                  exhaust: [],
-                  block: 0,
-                  tideCounter: 0,
-                  specialAction: enemyData.specialAction,
-                  specialActionTriggered: false,
-              };
-          });
-          
-          const deckToUse = draft.player.decks[draft.player.activeDeckId];
-          const initialDeck = draft.interimCombatState ? draft.interimCombatState.deck : shuffle(deckToUse).map(cardId => ({
-            ...allCards[cardId],
-            instanceId: `${cardId}_${Date.now()}_${Math.random()}`
-          }));
-          const initialHand = draft.interimCombatState ? draft.interimCombatState.hand : [];
-          const initialDiscard = draft.interimCombatState ? draft.interimCombatState.discard : [];
-          const initialExhaust = draft.interimCombatState ? draft.interimCombatState.exhaust : [];
-          const initialConstructs = draft.interimCombatState?.constructs || [];
-          
-          draft.interimCombatState = undefined;
-          draft.player.tideCounter = 0;
-
-
-          draft.combatState = {
-              phase: 'player_turn',
-              enemies,
-              constructs: initialConstructs,
-              log: [{ id: logIdCounter++, text: '战斗开始！' }],
-              overclockCooldown: 0,
-              turn: 0,
-              deck: initialDeck,
-              hand: initialHand,
-              discard: initialDiscard,
-              exhaust: initialExhaust,
-              block: 0,
-              activeEnemyIndex: null,
-              enemyActions: {},
-              activeActionIndex: 0,
-              attackingEnemyId: null,
-              animationTriggers: {},
-              sparkCostModifier: 0,
-              cardsPlayedThisTurn: 0,
-              nextAttackCostModifier: 0,
-              firstAttackPlayedThisTurn: false,
-              firstDiscardThisTurn: false,
-              differentAttacksPlayed: [],
-              hpThresholdTriggered: false,
-              debuffsAppliedThisTurn: 0,
-              damageTakenThisTurn: 0,
-          };
-          
-          startPlayerTurn();
-        } else {
-          draft.status = GameStatus.IN_MISSION_DIALOGUE;
+        switch (nextEvent.type) {
+            case 'dialogue':
+            case 'title':
+                draft.status = GameStatus.IN_MISSION_DIALOGUE;
+                break;
+            case 'combat':
+                draft.status = GameStatus.COMBAT_START;
+                let waveCount = 0;
+                for (let i = draft.currentEventIndex; i < mission.events.length; i++) {
+                    if (mission.events[i].type === 'combat') {
+                        waveCount++;
+                    } else {
+                        break;
+                    }
+                }
+                const combatEvent = nextEvent as CombatEvent;
+                draft.combatStartInfo = {
+                    enemies: combatEvent.enemies.length,
+                    waves: waveCount,
+                };
+                break;
+            case 'supply_stop':
+                draft.status = GameStatus.SUPPLY_STOP;
+                break;
+            case 'action':
+                switch(nextEvent.action) {
+                    case 'open_hub':
+                        if (!draft.player.completedMissions.includes(draft.currentMissionId)) {
+                            draft.player.completedMissions.push(draft.currentMissionId);
+                            draft.player.dreamSediment += mission.rewards.dreamSediment;
+                        }
+                        returnToHubAndReset();
+                        break;
+                    case 'present_choice':
+                        draft.status = GameStatus.CHOICE_SCREEN;
+                        break;
+                    case 'game_over':
+                        if (!draft.player.completedMissions.includes(draft.currentMissionId)) {
+                            draft.player.completedMissions.push(draft.currentMissionId);
+                            draft.player.dreamSediment += mission.rewards.dreamSediment;
+                        }
+                        draft.status = GameStatus.GAME_COMPLETE;
+                        break;
+                }
+                break;
         }
         break;
       }
@@ -1376,7 +1398,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         let nextInteractiveIndex = -1;
         for (let i = draft.currentEventIndex; i < mission.events.length; i++) {
             const event = mission.events[i];
-            if (event.type === 'combat' || (event.type === 'action' && event.action !== 'end_chapter')) {
+            if (event.type === 'combat' || event.type === 'supply_stop' || (event.type === 'action' && event.action !== 'end_chapter')) {
                 nextInteractiveIndex = i;
                 break;
             }
@@ -1386,74 +1408,23 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             draft.currentEventIndex = nextInteractiveIndex;
             const event = mission.events[nextInteractiveIndex];
 
-            if (event.type === 'combat') {
-              draft.status = GameStatus.IN_MISSION_COMBAT;
-              
-              const stage = getStage();
-              const enemies = event.enemies.map((enemyId, index) => {
-                  const enemyData = ENEMIES[enemyId];
-                  const finalHp = Math.round(enemyData.maxHp * (1 + (stage - 1) * 0.08));
-                  const finalAttack = Math.round(enemyData.attack * (1 + (stage - 1) * 0.06));
-                  return {
-                      ...enemyData,
-                      id: `${enemyId}_${index}`,
-                      hp: finalHp,
-                      maxHp: finalHp,
-                      attack: finalAttack,
-                      deck: shuffle(enemyData.deck),
-                      statusEffects: [],
-                      hand: [],
-                      discard: [],
-                      exhaust: [],
-                      block: 0,
-                      tideCounter: 0,
-                      specialAction: enemyData.specialAction,
-                      specialActionTriggered: false,
-                  };
-              });
-              
-              const deckToUse = draft.player.decks[draft.player.activeDeckId];
-              const initialDeck = draft.interimCombatState ? draft.interimCombatState.deck : shuffle(deckToUse).map(cardId => ({
-                ...allCards[cardId],
-                instanceId: `${cardId}_${Date.now()}_${Math.random()}`
-              }));
-              const initialHand = draft.interimCombatState ? draft.interimCombatState.hand : [];
-              const initialDiscard = draft.interimCombatState ? draft.interimCombatState.discard : [];
-              const initialExhaust = draft.interimCombatState ? draft.interimCombatState.exhaust : [];
-              const initialConstructs = draft.interimCombatState?.constructs || [];
-
-              draft.interimCombatState = undefined;
-              draft.player.tideCounter = 0;
-
-              draft.combatState = {
-                  phase: 'player_turn',
-                  enemies,
-                  constructs: initialConstructs,
-                  log: [{ id: logIdCounter++, text: '战斗开始！' }],
-                  overclockCooldown: 0,
-                  turn: 0,
-                  deck: initialDeck,
-                  hand: initialHand,
-                  discard: initialDiscard,
-                  exhaust: initialExhaust,
-                  block: 0,
-                  activeEnemyIndex: null,
-                  enemyActions: {},
-                  activeActionIndex: 0,
-                  attackingEnemyId: null,
-                  animationTriggers: {},
-                  sparkCostModifier: 0,
-                  cardsPlayedThisTurn: 0,
-                  nextAttackCostModifier: 0,
-                  firstAttackPlayedThisTurn: false,
-                  firstDiscardThisTurn: false,
-                  differentAttacksPlayed: [],
-                  hpThresholdTriggered: false,
-                  debuffsAppliedThisTurn: 0,
-                  damageTakenThisTurn: 0,
+            if (event.type === 'supply_stop') {
+                draft.status = GameStatus.SUPPLY_STOP;
+            } else if (event.type === 'combat') {
+              draft.status = GameStatus.COMBAT_START;
+              let waveCount = 0;
+              for (let i = draft.currentEventIndex; i < mission.events.length; i++) {
+                  if (mission.events[i].type === 'combat') {
+                      waveCount++;
+                  } else {
+                      break;
+                  }
+              }
+              const combatEvent = mission.events[draft.currentEventIndex] as CombatEvent;
+              draft.combatStartInfo = {
+                  enemies: combatEvent.enemies.length,
+                  waves: waveCount,
               };
-              
-              startPlayerTurn();
             } else if (event.type === 'action') {
                 switch(event.action) {
                     case 'open_hub':
@@ -1493,6 +1464,17 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         }
         returnToHubAndReset();
         break;
+      }
+      
+      case 'START_COMBAT': {
+          if (!draft.currentMissionId) break;
+          const mission = MISSIONS[draft.currentMissionId];
+          const combatEvent = mission.events![draft.currentEventIndex] as CombatEvent;
+          
+          draft.status = GameStatus.IN_MISSION_COMBAT;
+          setupCombat(draft, combatEvent);
+          draft.combatStartInfo = undefined;
+          break;
       }
         
       case 'PLAY_CARD': {
@@ -1781,7 +1763,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       case 'CHOOSE_CARD_TO_GENERATE': {
         if (!draft.combatState || draft.combatState.phase !== 'awaiting_card_choice') break;
         const { cardId } = action.payload;
-        const cardTemplate = allCards[cardId];
+        const cardTemplate = getAllCards()[cardId];
 
         if (cardTemplate) {
             const newCard: CombatCard = {
@@ -1890,7 +1872,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         if (feverishPowerEffect && feverishPowerEffect.data?.cardsToAdd) {
             addLog(`[狂热演算] 效果触发，将卡牌加入弃牌堆。`, 'text-yellow-500');
             (feverishPowerEffect.data.cardsToAdd as string[]).forEach((cardId: string) => {
-                const newCardTemplate = allCards[cardId];
+                const newCardTemplate = getAllCards()[cardId];
                 if (newCardTemplate) {
                     const newCard: CombatCard = {
                         ...newCardTemplate,
@@ -1907,7 +1889,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         const painEchoEffect = draft.player.statusEffects.find(e => e.id === 'pain_echo_effect');
         if (painEchoEffect && draft.combatState.bleedDamageDealtThisTurn) {
             addLog(`[痛苦回响] 效果触发！`, 'text-yellow-500');
-            const painCard = allCards['pain'];
+            const painCard = getAllCards()['pain'];
             if(painCard) {
                 draft.combatState.deck.push({ ...painCard, instanceId: `pain_${Date.now()}_${Math.random()}`, temporary: true });
                 draft.combatState.deck.push({ ...painCard, instanceId: `pain_${Date.now()}_${Math.random()}_2`, temporary: true });
@@ -2131,7 +2113,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                                     
                                     if (targetIdForAction === 'player' && card.effect.addCardToDeckOnHpDamage && damageToHp > 0) {
                                         card.effect.addCardToDeckOnHpDamage.forEach(cardIdToAdd => {
-                                            const newCardTemplate = allCards[cardIdToAdd];
+                                            const newCardTemplate = getAllCards()[cardIdToAdd];
                                             if (newCardTemplate) {
                                                 const newCard: CombatCard = {
                                                     ...newCardTemplate,
@@ -2169,7 +2151,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                                     }
 
                                     if (targetIdForAction === 'player' && draft.player.counterAttack && draft.player.hp > 0) {
-                                        const counterCard = allCards[draft.player.counterAttack];
+                                        const counterCard = getAllCards()[draft.player.counterAttack];
                                         if (counterCard && counterCard.effect.damageMultiplier) {
                                             let counterDamage = Math.round(playerStats.attack * counterCard.effect.damageMultiplier);
                                             const finalCounterDamage = Math.max(1, counterDamage - enemy.defense);
@@ -2271,7 +2253,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
                     if (card.effect.addCardToDiscard) {
                         card.effect.addCardToDiscard.forEach(cardId => {
-                            const newCardTemplate = allCards[cardId];
+                            const newCardTemplate = getAllCards()[cardId];
                             if (newCardTemplate) {
                                 const newCard: CombatCard = {
                                     ...newCardTemplate,
@@ -2284,7 +2266,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                     }
                     if (card.effect.addCardToDeck) {
                         card.effect.addCardToDeck.forEach(cardId => {
-                            const newCardTemplate = allCards[cardId];
+                            const newCardTemplate = getAllCards()[cardId];
                             if (newCardTemplate) {
                                 const newCard: CombatCard = {
                                     ...newCardTemplate,
@@ -2391,7 +2373,28 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             };
             draft.combatState = null;
             draft.currentEventIndex = nextIndex;
-            draft.status = GameStatus.IN_MISSION_DIALOGUE;
+            const nextEvent = mission.events[nextIndex];
+
+            if (nextEvent.type === 'combat') {
+                draft.status = GameStatus.COMBAT_START;
+                let waveCount = 0;
+                for (let i = draft.currentEventIndex; i < mission.events.length; i++) {
+                    if (mission.events[i].type === 'combat') {
+                        waveCount++;
+                    } else {
+                        break;
+                    }
+                }
+                const combatEvent = mission.events[draft.currentEventIndex] as CombatEvent;
+                draft.combatStartInfo = {
+                    enemies: combatEvent.enemies.length,
+                    waves: waveCount,
+                };
+            } else if (nextEvent.type === 'supply_stop') {
+                draft.status = GameStatus.SUPPLY_STOP;
+            } else {
+                draft.status = GameStatus.IN_MISSION_DIALOGUE;
+            }
         }
         
         draft.isFirstCombatOfMission = false;
@@ -2414,6 +2417,13 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         draft.sedimentGainedOnDefeat = sedimentReward;
         draft.status = GameStatus.GAME_OVER;
         draft.interimCombatState = undefined;
+        break;
+      }
+      
+      case 'APPLY_SUPPLY_STOP': {
+        const playerStats = getPlayerStats();
+        draft.player.hp = playerStats.maxHp;
+        draft.player.cp = playerStats.maxCp;
         break;
       }
 
@@ -2446,7 +2456,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
       case 'EQUIP_ITEM': {
         const { itemId } = action.payload;
-        const item = allEquipment[itemId];
+        const item = getAllEquipment()[itemId];
         if (!item) break;
         
         const currentItemId = draft.player.equipment[item.slot];
@@ -2503,7 +2513,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             const forceEpic = cardSyncs >= 2;
 
             const newCards = generateCardPack(draft.player.cardCollection, forceEpic);
-            const hasEpic = newCards.some(id => allCards[id]?.rarity === CardRarity.EPIC);
+            const hasEpic = newCards.some(id => getAllCards()[id]?.rarity === CardRarity.EPIC);
 
             if (hasEpic) {
                 draft.player.cardSyncsSinceLastEpic = 0;

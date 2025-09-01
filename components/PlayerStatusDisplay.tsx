@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGame } from '../contexts/GameContext';
-import { SparklesIcon, HeartIcon, CpuChipIcon, ShieldCheckIcon, HandRaisedIcon } from '@heroicons/react/24/solid';
+import { SparklesIcon, HeartIcon, CpuChipIcon, ShieldCheckIcon, HandRaisedIcon } from '@heroicons/react/24/outline';
 import { getEffectivePlayerStats } from '../utils/playerUtils';
 import { GameStatus } from '../types';
 

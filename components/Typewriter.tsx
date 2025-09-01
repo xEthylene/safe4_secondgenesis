@@ -5,10 +5,11 @@ interface TypewriterProps {
   text: string;
   speed?: number;
   onFinished?: () => void;
+  onProceed?: () => void;
   className?: string;
 }
 
-const Typewriter: React.FC<TypewriterProps> = ({ text, speed = 30, onFinished, className }) => {
+const Typewriter: React.FC<TypewriterProps> = ({ text, speed = 30, onFinished, onProceed, className }) => {
   const [displayedText, setDisplayedText] = useState('');
   const intervalRef = useRef<number | null>(null);
   const isTypingRef = useRef(true);
@@ -58,9 +59,13 @@ const Typewriter: React.FC<TypewriterProps> = ({ text, speed = 30, onFinished, c
     };
   }, [text, speed, completeTyping]);
 
-  const handleSkip = (e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    completeTyping();
+    if (isTypingRef.current) {
+      completeTyping();
+    } else if (onProceed) {
+      onProceed();
+    }
   };
   
   const displayTextWithBreaks = displayedText.split('\n').map((line, index) => (
@@ -70,7 +75,7 @@ const Typewriter: React.FC<TypewriterProps> = ({ text, speed = 30, onFinished, c
     </React.Fragment>
   ));
 
-  return <div className={className} onClick={handleSkip}>{displayTextWithBreaks}</div>;
+  return <div className={className} onClick={handleClick}>{displayTextWithBreaks}</div>;
 };
 
 export default Typewriter;

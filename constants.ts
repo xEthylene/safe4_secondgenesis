@@ -6,6 +6,7 @@ export * from './data/enemies';
 export * from './data/equipment';
 // FIX: Export MISSIONS and CHARACTER_PORTRAITS from constants to centralize data imports.
 export * from './data/missions';
+export * from './data/keywords';
 
 
 export const SYNC_COSTS = {

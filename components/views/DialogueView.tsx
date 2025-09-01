@@ -20,12 +20,6 @@ const DialogueView: React.FC = () => {
             dispatch({ type: 'ADVANCE_STORY' });
         }
     };
-    
-    useEffect(() => {
-        if (event.type === 'combat' || event.type === 'action') {
-            dispatch({ type: 'ADVANCE_STORY' });
-        }
-    }, [event, dispatch]);
 
     const renderEvent = () => {
         switch (event.type) {
@@ -45,14 +39,28 @@ const DialogueView: React.FC = () => {
                         <div className={`flex-1 ${!showPortrait ? 'max-w-3xl' : ''} ${isSystem ? 'text-center' : ''}`}>
                             <div className={`inline-block p-4 rounded-lg w-full ${isPlayer ? 'bg-blue-800/50' : 'bg-gray-800/50'} border ${isPlayer ? 'border-blue-500/30' : 'border-gray-600/30'}`}>
                                <p className={`font-bold mb-2 ${isSystem ? 'text-cyan-400' : 'text-yellow-400'}`}>{event.character}</p>
-                               <div className="text-base md:text-lg leading-relaxed whitespace-pre-wrap text-left"><Typewriter text={event.text} onFinished={() => setCanProceed(true)} /></div>
+                               <div className="text-base md:text-lg leading-relaxed whitespace-pre-wrap text-left">
+                                 <Typewriter 
+                                    text={event.text} 
+                                    onFinished={() => setCanProceed(true)}
+                                    onProceed={handleProceed}
+                                 />
+                               </div>
                             </div>
                         </div>
                     </div>
                 );
             }
             case 'title':
-                 return <div className="text-5xl font-bold text-center my-10 text-gray-400 animate-fadeIn"><Typewriter text={(event as TitleEvent).text} onFinished={() => setCanProceed(true)}/></div>;
+                 return (
+                    <div className="text-5xl font-bold text-center my-10 text-gray-400 animate-fadeIn">
+                        <Typewriter 
+                            text={(event as TitleEvent).text} 
+                            onFinished={() => setCanProceed(true)}
+                            onProceed={handleProceed}
+                        />
+                    </div>
+                );
             default:
                 return null;
         }

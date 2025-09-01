@@ -1,13 +1,95 @@
-
-
 import React, { useEffect, useState, useRef, useLayoutEffect, CSSProperties } from 'react';
 import { useGame } from '../../contexts/GameContext';
 import { Enemy, Card as CardType, StatusEffect, CardRarity, CombatLogEntry, PlayerStats, CombatCard, CardEffect, Construct } from '../../types';
-import { CARDS, ENEMY_CARDS, CONSTRUCTS } from '../../constants';
-import { DocumentDuplicateIcon, ArchiveBoxIcon, ShieldCheckIcon, RectangleStackIcon, HandRaisedIcon, ExclamationTriangleIcon, PlusIcon, CubeIcon, CpuChipIcon } from '@heroicons/react/24/solid';
+import { CARDS, ENEMY_CARDS, CONSTRUCTS, KEYWORD_DEFINITIONS } from '../../constants';
+import { DocumentDuplicateIcon, ArchiveBoxIcon, ShieldCheckIcon, RectangleStackIcon, HandRaisedIcon, ExclamationTriangleIcon, PlusIcon, CubeIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 import { getDynamicCardDescription } from '../../utils/cardUtils';
 import { getEffectivePlayerStats } from '../../utils/playerUtils';
 import TurnBanner from '../TurnBanner';
+
+const KEYWORDS_TO_HIGHLIGHT = [
+    '消耗', '无限', '递增', '充能', '烧伤', '流血', '中毒', '弃牌', 
+    '衍生', '反击', '过载', '贯穿', '连锁', '强化', '能力', '终幕', 
+    '抉择', '溢流', '状态', '构装体', '弱化', '易伤', '束缚', '护盾', 
+    '过热', '歼灭模式', '蓄能', '烈焰焚烧', '狂热计算', '限制解除', 
+    '薪火', '痛苦回响', '开幕仪典', '再校准协议', '淬毒'
+];
+
+const AutoScrollContent: React.FC<{ children: React.ReactNode; className?: string; }> = ({ children, className }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const [animationStyle, setAnimationStyle] = useState<any>({});
+
+    useLayoutEffect(() => {
+        const container = containerRef.current;
+        const content = contentRef.current;
+        if (container && content) {
+            const containerHeight = container.clientHeight;
+            const contentHeight = content.scrollHeight;
+            const overflow = contentHeight - containerHeight;
+
+            if (overflow > 5) { // Add a small buffer to avoid tiny scrolls
+                const scrollSpeed = 40; // pixels per second
+                const duration = (overflow / scrollSpeed) * 2.5; // scroll down, up, and pauses
+                const totalDuration = Math.max(4, duration); // minimum duration
+
+                setAnimationStyle({
+                    '--scroll-height': `-${overflow}px`,
+                    animation: `scroll-y-overflow ${totalDuration}s ease-in-out infinite`,
+                });
+            } else {
+                setAnimationStyle({});
+            }
+        }
+    }, [children]);
+
+    return (
+        <div ref={containerRef} className={`overflow-hidden ${className}`}>
+            <div ref={contentRef} style={animationStyle}>
+                {children}
+            </div>
+        </div>
+    );
+};
+
+const renderHighlightedText = (text: string): React.ReactNode => {
+    if (!text) return text;
+    const keywordRegex = new RegExp(`(\\[[^\\]]+\\]|${KEYWORDS_TO_HIGHLIGHT.join('|')})`, 'g');
+    const parts = text.split(keywordRegex);
+
+    return (
+        <>
+            {parts.map((part, index) => {
+                if (!part) return null;
+                const isBracketed = part.startsWith('[') && part.endsWith(']');
+                const cleanPart = isBracketed ? part.substring(1, part.length - 1) : part;
+
+                if (KEYWORDS_TO_HIGHLIGHT.includes(cleanPart)) {
+                    return <strong key={index} className="font-bold text-yellow-300">{part}</strong>;
+                }
+                return part;
+            })}
+        </>
+    );
+};
+
+const getGeneratedCardIds = (effect: CardEffect): string[] => {
+    const ids = new Set<string>();
+
+    const parseEffect = (eff: CardEffect | undefined) => {
+        if (!eff) return;
+        if (eff.addCardToHand) ids.add(eff.addCardToHand);
+        if (eff.addCardToDeck) eff.addCardToDeck.forEach(id => ids.add(id));
+        if (eff.addCardToDiscard) eff.addCardToDiscard.forEach(id => ids.add(id));
+        if (eff.grantsCounter) ids.add(eff.grantsCounter);
+        if (eff.generateCardChoice) eff.generateCardChoice.forEach(id => ids.add(id));
+        if (eff.choiceEffect) eff.choiceEffect.options.forEach(o => parseEffect(o.effect));
+    };
+
+    parseEffect(effect);
+    
+    return Array.from(ids);
+};
 
 const getRarityColor = (rarity: CardRarity) => {
     switch (rarity) {
@@ -31,7 +113,7 @@ const Card: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; style?: C
                 <h3 className="font-bold text-base text-white">{card.name}</h3>
                 <p className="text-xs text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
             </div>
-            <p className="text-sm text-gray-200 flex-grow mt-2 whitespace-pre-wrap">{description}</p>
+            <p className="text-sm text-gray-200 flex-grow mt-2 whitespace-pre-wrap">{renderHighlightedText(description)}</p>
             <p className="text-lg font-bold text-blue-300 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
         </div>
     )
@@ -80,7 +162,7 @@ const MobileCard: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; cla
                 ref={descriptionRef}
                 className="text-gray-200 flex-grow mt-1 whitespace-pre-wrap leading-tight pr-1 overflow-hidden"
             >
-                {description}
+                {renderHighlightedText(description)}
             </p>
             <p className="text-sm font-bold text-blue-300 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
         </div>
@@ -238,10 +320,10 @@ const EnemySprite: React.FC<{
     onActionIntentHover: (card: CardType, enemy: Enemy) => void;
     onActionIntentLeave: () => void;
     onActionIntentPress: (card: CardType, enemy: Enemy) => void;
-    onActionIntentRelease: () => void;
-}> = ({ enemy, isSelected, onSelect, isTargeting, actionCards, isAttacking, currentActionIndex, onActionIntentHover, onActionIntentLeave, onActionIntentPress, onActionIntentRelease }) => {
+}> = ({ enemy, isSelected, onSelect, isTargeting, actionCards, isAttacking, currentActionIndex, onActionIntentHover, onActionIntentLeave, onActionIntentPress }) => {
     const hpPercentage = (enemy.hp / enemy.maxHp) * 100;
     const { animationClass, floatingTexts } = useCombatEntityAnimation(enemy.id, enemy.hp, enemy.block);
+    const longPressTimer = useRef<number | null>(null);
     
     const isDefeated = enemy.hp <= 0;
     const selectionClass = isSelected && !isDefeated ? 'border-yellow-400 scale-105' : 'border-red-800';
@@ -252,6 +334,19 @@ const EnemySprite: React.FC<{
     const cardBeingPlayed = isAttacking && actionCards ? actionCards[currentActionIndex] : null;
     
     const tideDisplay = (enemy.tideCounter % 3 === 0 && enemy.tideCounter > 0) ? 3 : enemy.tideCounter % 3;
+    
+    const handlePressStart = (card: CardType, enemy: Enemy) => {
+        longPressTimer.current = window.setTimeout(() => {
+            onActionIntentPress(card, enemy);
+        }, 300);
+    };
+
+    const handlePressEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+        }
+    };
+
 
     return (
         <div
@@ -264,9 +359,9 @@ const EnemySprite: React.FC<{
                         key={index}
                         onMouseEnter={() => onActionIntentHover(card, enemy)}
                         onMouseLeave={onActionIntentLeave}
-                        onTouchStart={() => onActionIntentPress(card, enemy)}
-                        onTouchEnd={onActionIntentRelease}
-                        onTouchCancel={onActionIntentRelease}
+                        onTouchStart={() => handlePressStart(card, enemy)}
+                        onTouchEnd={handlePressEnd}
+                        onTouchCancel={handlePressEnd}
                     >
                         <ActionIntentIcon card={card} enemy={enemy} />
                     </div>
@@ -451,10 +546,9 @@ const CombatView: React.FC = () => {
     const { state, dispatch } = useGame();
     const { player, combatState, customCards, customEquipment } = state;
     const [selectedCardInstanceId, setSelectedCardInstanceId] = useState<string | null>(null);
-    const [mobileSelectedCardId, setMobileSelectedCardId] = useState<string | null>(null);
     const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
     const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
-    const [mobileHoveredCardIndex, setMobileHoveredCardIndex] = useState<number | null>(null);
+    const [mobileDetailCardIndex, setMobileDetailCardIndex] = useState<number | null>(null);
     const [hoveredCardInfo, setHoveredCardInfo] = useState<{ card: CardType; stats: Partial<PlayerStats> } | null>(null);
     const [mobileDetailCard, setMobileDetailCard] = useState<{ card: CardType; stats: Partial<PlayerStats> } | null>(null);
     const [animatingPlayedCard, setAnimatingPlayedCard] = useState<CombatCard | null>(null);
@@ -465,6 +559,8 @@ const CombatView: React.FC = () => {
     const [isHandDrawerOpen, setIsHandDrawerOpen] = useState(false);
     const [showMobileLog, setShowMobileLog] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const tooltipTimeoutRef = useRef<number | null>(null);
+    const [isTooltipHovered, setIsTooltipHovered] = useState(false);
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -497,7 +593,7 @@ const CombatView: React.FC = () => {
         if (combatState.phase === 'player_turn' && (combatState.turn !== prevTurnRef.current || prevPhaseRef.current !== 'player_turn')) {
             setBannerText('你的回合');
             setSelectedCardInstanceId(null);
-            setMobileSelectedCardId(null);
+            setMobileDetailCardIndex(null);
             const timer = setTimeout(() => setBannerText(null), 1500);
             return () => clearTimeout(timer);
         } else if (combatState.phase === 'enemy_turn' && prevPhaseRef.current === 'player_turn') {
@@ -562,15 +658,23 @@ const CombatView: React.FC = () => {
     const isSelectionPhase = combatState?.phase === 'awaiting_discard' || combatState?.phase === 'awaiting_return_to_deck' || combatState?.phase === 'awaiting_effect_choice';
 
     const handleActionIntentHover = (card: CardType, enemy: Enemy) => {
-        if (!isMobile) setHoveredCardInfo({ card, stats: { attack: enemy.attack, defense: enemy.defense } });
+        if (!isMobile) {
+            if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+            setHoveredCardInfo({ card, stats: { attack: enemy.attack, defense: enemy.defense } })
+        };
     };
-    const handleActionIntentLeave = () => setHoveredCardInfo(null);
+    const handleActionIntentLeave = () => {
+        if (!isMobile) {
+            tooltipTimeoutRef.current = window.setTimeout(() => {
+                if (!isTooltipHovered) {
+                    setHoveredCardInfo(null);
+                }
+            }, 200);
+        }
+    };
     
     const handleActionIntentPress = (card: CardType, enemy: Enemy) => {
         if (isMobile) setMobileDetailCard({ card, stats: { attack: enemy.attack, defense: enemy.defense } });
-    };
-    const handleActionIntentRelease = () => {
-        if (isMobile) setMobileDetailCard(null);
     };
 
     useEffect(() => {
@@ -606,7 +710,7 @@ const CombatView: React.FC = () => {
     if (!combatState) return <div>Loading Combat...</div>;
     
     const selectedCard = selectedCardInstanceId ? combatState.hand.find(c => c.instanceId === selectedCardInstanceId) : null;
-    const isTargeting = selectedCard;
+    const isTargeting = selectedCard || (isMobile && mobileDetailCardIndex !== null && (combatState.hand[mobileDetailCardIndex]?.effect.target === 'enemy' || combatState.hand[mobileDetailCardIndex]?.effect.target === 'designated_target'));
     const handSize = combatState.hand.length;
 
     const isCardPlayable = (card: CombatCard) => {
@@ -633,29 +737,36 @@ const CombatView: React.FC = () => {
 
         dispatch({ type: 'PLAY_CARD', payload: { cardInstanceId, targetId } });
         setSelectedCardInstanceId(null);
-        setMobileSelectedCardId(null);
-        // Drawer is handled by useEffect now
+        setMobileDetailCardIndex(null);
     };
 
-    const handleCardClick = (card: CombatCard) => {
-        if (isSelectionPhase || combatState.phase !== 'player_turn' || !isCardPlayable(card)) return;
+    const handleCardClick = (card: CombatCard, index: number) => {
+        if (isSelectionPhase && isMobile) {
+            handleSelectionClick(card.instanceId);
+            return;
+        }
 
+        if (combatState.phase !== 'player_turn' || !isCardPlayable(card)) return;
+    
         const needsTarget = card.effect.target === 'enemy' || card.effect.target === 'designated_target';
         
         if (isMobile) {
-            if (needsTarget) {
-                setSelectedCardInstanceId(card.instanceId);
-                setMobileSelectedCardId(null);
-                setIsHandDrawerOpen(false); // Close drawer to allow target selection
+            if (mobileDetailCardIndex === index) { // Double tap to play
+                if (needsTarget) {
+                    setSelectedCardInstanceId(card.instanceId);
+                    setIsHandDrawerOpen(false);
+                } else {
+                    handleCardPlay(card.instanceId);
+                }
+                setMobileDetailCardIndex(null); // Reset detail view
             } else {
-                setSelectedCardInstanceId(null);
-                setMobileSelectedCardId(card.instanceId);
+                setMobileDetailCardIndex(index); // Single tap to view details
             }
         } else { // Desktop
             if (needsTarget) {
                 setSelectedCardInstanceId(card.instanceId);
             } else {
-                handleCardPlay(card.instanceId, selectedTargetId ?? undefined);
+                handleCardPlay(card.instanceId);
             }
         }
     };
@@ -677,8 +788,13 @@ const CombatView: React.FC = () => {
     
     const handleTargetSelect = (targetId: string) => {
         setSelectedTargetId(targetId);
-        if (selectedCardInstanceId) {
-            handleCardPlay(selectedCardInstanceId, targetId);
+        const desktopCardId = selectedCardInstanceId;
+        const mobileCard = (isMobile && mobileDetailCardIndex !== null) ? combatState.hand[mobileDetailCardIndex] : null;
+
+        if (desktopCardId) {
+            handleCardPlay(desktopCardId, targetId);
+        } else if (mobileCard) {
+            handleCardPlay(mobileCard.instanceId, targetId);
         }
     };
     
@@ -711,30 +827,13 @@ const CombatView: React.FC = () => {
     };
 
     const getMobileCardStyle = (index: number): CSSProperties => {
-        const isHovered = mobileHoveredCardIndex === index;
         const totalCards = handSize;
         const baseOverlap = -35 - totalCards * 4;
-        const hoverShift = 30;
-
-        let xOffset = 0;
-        let yOffset = 0;
-
-        if (mobileHoveredCardIndex !== null) {
-            if (index < mobileHoveredCardIndex) {
-                xOffset = -hoverShift;
-            } else if (index > mobileHoveredCardIndex) {
-                xOffset = hoverShift;
-            }
-        }
-         if (isHovered) {
-            yOffset = -40;
-        }
         
         return {
             marginLeft: index > 0 ? `${baseOverlap}px` : '0px',
-            transition: 'transform 0.2s ease-out, margin-left 0.2s ease-out',
-            zIndex: isHovered ? 100 : index,
-            transform: `translateY(${yOffset}px) translateX(${xOffset}px) scale(${isHovered ? '1.1' : '1'})`,
+            transition: 'transform 0.2s ease-out, margin-left 0.2s ease-out, box-shadow 0.2s',
+            zIndex: index,
         };
     };
 
@@ -751,28 +850,6 @@ const CombatView: React.FC = () => {
     const tideDisplay = (player.tideCounter % 3 === 0 && player.tideCounter > 0) ? 3 : player.tideCounter % 3;
 
     const renderEndTurnButton = () => {
-        const mobileSelectedCardForConfirmation = isMobile && mobileSelectedCardId ? combatState.hand.find(c => c.instanceId === mobileSelectedCardId) : null;
-        if (mobileSelectedCardForConfirmation) {
-            return (
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => {
-                            handleCardPlay(mobileSelectedCardForConfirmation.instanceId, selectedTargetId ?? undefined);
-                        }}
-                        className="px-6 py-2 bg-green-600 text-white font-bold rounded-md hover:bg-green-500 transition-all duration-300 text-base"
-                    >
-                        使用
-                    </button>
-                    <button
-                        onClick={() => setMobileSelectedCardId(null)}
-                        className="px-6 py-2 bg-gray-600 text-white font-bold rounded-md hover:bg-gray-500 transition-all duration-300 text-base"
-                    >
-                        取消
-                    </button>
-                </div>
-            );
-        }
-
         if (combatState.phase === 'awaiting_discard' || combatState.phase === 'awaiting_return_to_deck') {
             const action = combatState.phase === 'awaiting_discard' ? combatState.discardAction! : combatState.returnToDeckAction!;
             const isReady = selectedInstanceIds.length === action.count;
@@ -802,6 +879,8 @@ const CombatView: React.FC = () => {
 
     const playerConstructs = combatState.constructs.filter(c => c.owner === 'player');
     const enemyConstructs = combatState.constructs.filter(c => c.owner !== 'player');
+    
+    const mobileDetailCardInfo = mobileDetailCardIndex !== null ? combatState.hand[mobileDetailCardIndex] : null;
 
     return (
          <div className={`h-full flex flex-col md:flex-row animate-fadeIn pt-16 ${shake ? 'animate-screen-shake' : ''}`}>
@@ -833,16 +912,78 @@ const CombatView: React.FC = () => {
                 </div>
             )}
             {isMobile && mobileDetailCard && (
-                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-fadeIn pointer-events-none">
-                     <div className="w-48 h-64">
-                         <Card card={mobileDetailCard.card as CombatCard} stats={mobileDetailCard.stats} />
+                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center animate-fadeIn p-4 gap-4" onClick={() => setMobileDetailCard(null)}>
+                     <div onClick={e => e.stopPropagation()}>
+                        <div className="w-48 h-64 flex-shrink-0">
+                            <Card card={mobileDetailCard.card as CombatCard} stats={mobileDetailCard.stats} />
+                        </div>
+                        {(() => {
+                            const card = mobileDetailCard.card;
+                            const generatedCardIds = getGeneratedCardIds(card.effect);
+                            const keywords = card.keywords || [];
+                            if (keywords.length === 0 && generatedCardIds.length === 0) return null;
+                            return (
+                                <div className="w-full max-w-sm bg-gray-900/80 p-3 rounded-lg border border-gray-700 max-h-48 overflow-y-auto space-y-2 text-xs mt-4">
+                                    {keywords.map(kw => {
+                                        const def = KEYWORD_DEFINITIONS[kw];
+                                        if (!def) return null;
+                                        return (
+                                            <div key={kw}>
+                                                <p className="font-bold text-yellow-300">{def.title}</p>
+                                                <p className="text-gray-400">{def.description}</p>
+                                            </div>
+                                        );
+                                    })}
+                                    {generatedCardIds.map(genCardId => {
+                                        const genCard = allCards[genCardId];
+                                        if (!genCard) return null;
+                                        const genCardDesc = getDynamicCardDescription(genCard, mobileDetailCard.stats);
+                                        return (
+                                            <div key={genCardId} className="pt-2 mt-2 border-t border-gray-600/50">
+                                                <p className="font-bold text-cyan-300">相关卡牌: {genCard.name}</p>
+                                                <p className="text-gray-400 whitespace-pre-wrap">{renderHighlightedText(genCardDesc)}</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
                      </div>
                  </div>
             )}
             <div className="md:hidden">
-                {(mobileHoveredCardIndex !== null) && (
-                    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] pointer-events-none p-2 animate-fadeIn">
-                        <MobileCard card={combatState.hand[mobileHoveredCardIndex]} stats={playerStats} />
+                {mobileDetailCardInfo && (
+                    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] p-2 animate-fadeIn flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
+                        <div className="w-36 h-48">
+                            <MobileCard card={mobileDetailCardInfo} stats={playerStats} />
+                        </div>
+                        {(() => {
+                            const card = mobileDetailCardInfo;
+                            const generatedCardIds = getGeneratedCardIds(card.effect);
+                            const keywords = card.keywords || [];
+                            if (keywords.length === 0 && generatedCardIds.length === 0) return null;
+                            return (
+                                <div className="w-full max-w-xs bg-gray-900/80 p-2 rounded-lg border border-gray-700 max-h-32 overflow-y-auto space-y-1 text-[10px]">
+                                    {keywords.map(kw => {
+                                        const def = KEYWORD_DEFINITIONS[kw];
+                                        if (!def) return null;
+                                        return (<div key={kw}>
+                                            <p className="font-bold text-yellow-300">{def.title}</p>
+                                            <p className="text-gray-400">{def.description}</p>
+                                        </div>);
+                                    })}
+                                    {generatedCardIds.map(genCardId => {
+                                        const genCard = allCards[genCardId];
+                                        if (!genCard) return null;
+                                        const genCardDesc = getDynamicCardDescription(genCard, playerStats);
+                                        return (<div key={genCardId} className="pt-1 mt-1 border-t border-gray-600/50">
+                                            <p className="font-bold text-cyan-300">相关: {genCard.name}</p>
+                                            <p className="text-gray-400 whitespace-pre-wrap">{renderHighlightedText(genCardDesc)}</p>
+                                        </div>);
+                                    })}
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
             </div>
@@ -880,7 +1021,6 @@ const CombatView: React.FC = () => {
                                 onActionIntentHover={handleActionIntentHover}
                                 onActionIntentLeave={handleActionIntentLeave}
                                 onActionIntentPress={handleActionIntentPress}
-                                onActionIntentRelease={handleActionIntentRelease}
                             />
                         ))}
                         {[...playerConstructs, ...enemyConstructs].map(construct => (
@@ -920,7 +1060,7 @@ const CombatView: React.FC = () => {
                                         if (!isSelectionPhase) setHoveredCardIndex(index);
                                         setHoveredCardInfo({ card, stats: playerStats });
                                     }}
-                                    onClick={() => (combatState.phase === 'awaiting_discard' || combatState.phase === 'awaiting_return_to_deck') ? handleSelectionClick(card.instanceId) : (isPlayable && handleCardClick(card))}
+                                    onClick={() => (combatState.phase === 'awaiting_discard' || combatState.phase === 'awaiting_return_to_deck') ? handleSelectionClick(card.instanceId) : (isPlayable && handleCardClick(card, index))}
                                 >
                                     <Card
                                         card={card} stats={playerStats}
@@ -961,8 +1101,8 @@ const CombatView: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-shrink-0 w-64 bg-gray-900/70 border-l border-gray-700 hidden md:flex flex-col">
-                <div className="flex-1 h-1/2 flex flex-col p-2 overflow-hidden">
+            <div className="flex-shrink-0 w-64 bg-gray-900/70 border-l border-gray-700 hidden md:flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col p-2 min-h-0">
                     <h2 className="text-center font-bold text-gray-400 border-b border-gray-600 pb-1 mb-2 flex-shrink-0">战斗记录</h2>
                     <div className="flex-grow overflow-y-auto pr-1 text-sm space-y-1">
                         {combatState.log.map(entry => (
@@ -971,13 +1111,56 @@ const CombatView: React.FC = () => {
                         <div ref={logEndRef} />
                     </div>
                 </div>
-                <div className="flex-none h-1/2 border-t border-gray-700 p-2 flex flex-col">
+                <div className="flex-shrink-0 border-t border-gray-700 p-2 flex flex-col">
                     <h2 className="text-center font-bold text-gray-400 border-b border-gray-600 pb-1 mb-2 flex-shrink-0">卡牌详情</h2>
-                    <div className="flex-grow flex items-center justify-center p-2">
+                    <div className="flex flex-col items-center p-2 flex-1 min-h-0">
                         {hoveredCardInfo ? (
-                            <Card card={hoveredCardInfo.card as CombatCard} stats={hoveredCardInfo.stats} />
+                            <div className="w-full flex flex-col gap-2 items-center flex-1 min-h-0">
+                                <div className="w-40 h-56 flex-shrink-0">
+                                    <Card card={hoveredCardInfo.card as CombatCard} stats={hoveredCardInfo.stats} />
+                                </div>
+                                {(() => {
+                                    const card = hoveredCardInfo.card;
+                                    const generatedCardIds = getGeneratedCardIds(card.effect);
+                                    const keywords = card.keywords || [];
+                                    if (keywords.length === 0 && generatedCardIds.length === 0) return null;
+
+                                    return (
+                                        <AutoScrollContent
+                                            className="w-full bg-gray-800 p-2 rounded-lg border border-gray-600 text-xs mt-2 flex-1"
+                                            key={hoveredCardInfo.card.id}
+                                        >
+                                            <div onMouseEnter={() => setIsTooltipHovered(true)} onMouseLeave={() => {setIsTooltipHovered(false); setHoveredCardInfo(null)}} className="space-y-2">
+                                                {keywords.map(kw => {
+                                                    const def = KEYWORD_DEFINITIONS[kw];
+                                                    if (!def) return null;
+                                                    return (
+                                                        <div key={kw}>
+                                                            <p className="font-bold text-yellow-300">{def.title}</p>
+                                                            <p className="text-gray-400">{def.description}</p>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {generatedCardIds.map(genCardId => {
+                                                    const genCard = allCards[genCardId];
+                                                    if (!genCard) return null;
+                                                    const genCardDesc = getDynamicCardDescription(genCard, hoveredCardInfo.stats);
+                                                    return (
+                                                        <div key={genCardId} className="pt-2 mt-2 border-t border-gray-600/50">
+                                                            <p className="font-bold text-cyan-300">相关卡牌: {genCard.name}</p>
+                                                            <p className="text-gray-400 whitespace-pre-wrap">{renderHighlightedText(genCardDesc)}</p>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </AutoScrollContent>
+                                    );
+                                })()}
+                            </div>
                         ) : (
-                            <p className="text-gray-500 text-center text-sm p-4">[ 将鼠标悬停在卡牌上以查看详情 ]</p>
+                            <div className="flex items-center justify-center flex-1">
+                                <p className="text-gray-500 text-center text-sm p-4">[ 将鼠标悬停在卡牌上以查看详情 ]</p>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -985,7 +1168,7 @@ const CombatView: React.FC = () => {
 
             {isHandDrawerOpen && <div className="md:hidden fixed inset-0 bg-black/50 z-30 drawer-backdrop" onClick={() => setIsHandDrawerOpen(false)}></div>}
             <div className={`md:hidden fixed bottom-0 left-0 right-0 z-40 transition-transform duration-300 ease-in-out ${isHandDrawerOpen ? 'translate-y-0' : 'translate-y-[calc(100%-6rem)]'}`}>
-                <div className={`h-24 bg-black/50 backdrop-blur-md border-t border-blue-500/20 flex items-center justify-between px-4 rounded-t-lg cursor-pointer relative ${playerAnimationClass}`} onClick={() => setIsHandDrawerOpen(!isHandDrawerOpen)}>
+                <div className={`h-24 bg-black/50 backdrop-blur-md border-t border-blue-500/20 flex items-center justify-between px-4 rounded-t-lg cursor-pointer relative ${playerAnimationClass}`} onClick={() => combatState.phase === 'player_turn' && setIsHandDrawerOpen(!isHandDrawerOpen)}>
                     <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-gray-500 rounded-full"></div>
                     <div className="flex-1 flex items-center gap-3 text-lg">
                         <div className="flex items-center gap-1" title="抽牌堆/弃牌堆">
@@ -1012,8 +1195,7 @@ const CombatView: React.FC = () => {
                     </div>
                 </div>
                 <div 
-                    className="h-48 bg-gray-900/80 flex justify-center items-end pb-4 overflow-x-auto px-4" 
-                    onMouseLeave={() => setMobileHoveredCardIndex(null)}
+                    className="h-48 bg-gray-900/80 flex justify-center items-end pb-4 overflow-x-auto px-4"
                 >
                      {combatState.hand.map((card, index) => {
                          const isPlayable = isCardPlayable(card);
@@ -1026,16 +1208,9 @@ const CombatView: React.FC = () => {
                                 key={card.instanceId}
                                 className="flex-shrink-0"
                                 style={getMobileCardStyle(index)}
-                                onMouseEnter={() => {
-                                    setMobileHoveredCardIndex(index);
-                                    setHoveredCardInfo({ card, stats: playerStats });
-                                }}
-                                onClick={() => {
-                                    if (isSelectionPhase) handleSelectionClick(card.instanceId);
-                                    else if (isPlayable) handleCardClick(card);
-                                }}
+                                onClick={() => handleCardClick(card, index)}
                             >
-                                <MobileCard card={card} stats={playerStats} effectiveCost={effectiveCost} className={`${!isPlayable && !isSelectionPhase ? 'opacity-50 filter grayscale' : 'cursor-pointer'} ${selectedCardInstanceId === card.instanceId || selectedInstanceIds.includes(card.instanceId) || mobileSelectedCardId === card.instanceId ? 'ring-2 ring-yellow-400' : ''}`} />
+                                <MobileCard card={card} stats={playerStats} effectiveCost={effectiveCost} className={`${!isPlayable && !isSelectionPhase ? 'opacity-50 filter grayscale' : 'cursor-pointer'} ${mobileDetailCardIndex === index || selectedCardInstanceId === card.instanceId || selectedInstanceIds.includes(card.instanceId) ? 'ring-2 ring-yellow-400 scale-105' : ''}`} />
                             </div>
                         )
                     })}

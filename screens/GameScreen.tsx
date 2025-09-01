@@ -1,6 +1,4 @@
-
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { GameStatus, Card as CardType, CardRarity, PlayerStats, Equipment } from '../types';
 import { CARDS, EQUIPMENT } from '../constants';
@@ -12,8 +10,40 @@ import CombatView from '../components/views/CombatView';
 import MissionVictoryView from '../components/views/MissionVictoryView';
 import PlayerStatusDisplay from '../components/PlayerStatusDisplay';
 import ChoiceView from '../components/views/ChoiceView';
+import SupplyStopView from '../components/views/SupplyStopView';
+import CombatStartView from '../components/views/CombatStartView';
 import { getDynamicCardDescription } from '../utils/cardUtils';
 import { getEffectivePlayerStats } from '../utils/playerUtils';
+
+const KEYWORDS_TO_HIGHLIGHT = [
+    '消耗', '无限', '递增', '充能', '烧伤', '流血', '中毒', '弃牌', 
+    '衍生', '反击', '过载', '贯穿', '连锁', '强化', '能力', '终幕', 
+    '抉择', '溢流', '状态', '构装体', '弱化', '易伤', '束缚', '护盾', 
+    '过热', '歼灭模式', '蓄能', '烈焰焚烧', '狂热计算', '限制解除', 
+    '薪火', '痛苦回响', '开幕仪典', '再校准协议', '淬毒'
+];
+
+const renderHighlightedText = (text: string): React.ReactNode => {
+    if (!text) return text;
+    const keywordRegex = new RegExp(`(\\[[^\\]]+\\]|${KEYWORDS_TO_HIGHLIGHT.join('|')})`, 'g');
+    const parts = text.split(keywordRegex);
+
+    return (
+        <>
+            {parts.map((part, index) => {
+                if (!part) return null;
+                const isBracketed = part.startsWith('[') && part.endsWith(']');
+                const cleanPart = isBracketed ? part.substring(1, part.length - 1) : part;
+
+                if (KEYWORDS_TO_HIGHLIGHT.includes(cleanPart)) {
+                    return <strong key={index} className="font-bold text-yellow-300">{part}</strong>;
+                }
+                return part;
+            })}
+        </>
+    );
+};
+
 
 const getRarityColorStyle = (rarity: CardRarity, bg: boolean = true) => {
     switch (rarity) {
@@ -43,7 +73,7 @@ const Card: React.FC<{ card: CardType; stats?: Partial<PlayerStats>; }> = ({ car
                 <h3 className="font-bold text-sm md:text-base text-white">{card.name}</h3>
                 <p className="text-xs text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
             </div>
-            <p className="text-xs md:text-sm text-gray-200 flex-grow mt-2 overflow-y-auto">{description}</p>
+            <p className="text-xs md:text-sm text-gray-200 flex-grow mt-2 overflow-y-auto whitespace-pre-wrap">{renderHighlightedText(description)}</p>
             <p className="text-base md:text-lg font-bold text-cyan-400 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} HP` : `${card.cost} CP`}</p>
         </div>
     )
@@ -72,7 +102,8 @@ const EquipmentCard: React.FC<{ item: Equipment }> = ({ item }) => {
 const CardRevealOverlay: React.FC = () => {
     const { state, dispatch } = useGame();
     const { newlyAcquiredCardIds, customCards, player, customEquipment } = state;
-    const allCards = { ...CARDS, ...customCards };
+    // FIX: Use a function to get the most up-to-date card data.
+    const getAllCards = () => ({ ...CARDS, ...customCards });
     const playerStats = getEffectivePlayerStats(player, customEquipment);
   
     const [revealed, setRevealed] = useState<boolean[]>(newlyAcquiredCardIds ? new Array(newlyAcquiredCardIds.length).fill(false) : []);
@@ -99,7 +130,7 @@ const CardRevealOverlay: React.FC = () => {
         <h2 className="text-3xl md:text-4xl font-bold text-yellow-300 mb-6 md:mb-8 drop-shadow-[0_0_8px_rgba(252,211,77,0.5)]">获得新卡片！</h2>
         <div className="flex flex-wrap justify-center gap-4 md:gap-8 max-h-[70vh] overflow-y-auto p-4">
           {newlyAcquiredCardIds.map((cardId, index) => {
-             const card = allCards[cardId];
+             const card = getAllCards()[cardId];
              if (!card) return null;
              return (
                 <div key={index} className="card-reveal-container w-36 h-52 md:w-48 md:h-64 cursor-pointer" onClick={() => handleCardClick(index)}>
@@ -144,13 +175,14 @@ const CardRevealOverlay: React.FC = () => {
 const EquipmentRevealOverlay: React.FC = () => {
     const { state, dispatch } = useGame();
     const { newlyAcquiredEquipmentIds, customEquipment } = state;
-    const allEquipment = { ...EQUIPMENT, ...customEquipment };
+    // FIX: Use a function to get the most up-to-date equipment data.
+    const getAllEquipment = () => ({ ...EQUIPMENT, ...customEquipment });
 
     if (!newlyAcquiredEquipmentIds || newlyAcquiredEquipmentIds.length === 0) {
         return null;
     }
 
-    const item = allEquipment[newlyAcquiredEquipmentIds[0]];
+    const item = getAllEquipment()[newlyAcquiredEquipmentIds[0]];
     if (!item) return null;
 
     return (
@@ -171,79 +203,91 @@ const EquipmentRevealOverlay: React.FC = () => {
 
 
 const GameScreen: React.FC = () => {
-  const { state, dispatch } = useGame();
+    const { state, dispatch } = useGame();
+    
+    const renderContentForStatus = (status: GameStatus) => {
+        switch (status) {
+            case GameStatus.TITLE_SCREEN: return <TitleScreen />;
+            case GameStatus.HUB: return <HubView />;
+            case GameStatus.MISSION_BRIEFING: return <MissionBriefingView />;
+            case GameStatus.IN_MISSION_DIALOGUE: return <DialogueView />;
+            case GameStatus.COMBAT_START: return <CombatStartView />;
+            case GameStatus.IN_MISSION_COMBAT: return <CombatView />;
+            case GameStatus.MISSION_VICTORY: return <MissionVictoryView />;
+            case GameStatus.CHOICE_SCREEN: return <ChoiceView />;
+            case GameStatus.SUPPLY_STOP: return <SupplyStopView />;
+            case GameStatus.GAME_COMPLETE:
+                return (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                        <h1 className="text-5xl font-bold text-cyan-400">结局</h1>
+                        <p className="text-xl mt-4">感谢您的游玩。</p>
+                        <button
+                            onClick={() => dispatch({ type: 'RESTART_GAME' })}
+                            className="mt-12 px-8 py-3 bg-gray-700 text-white font-bold rounded-md hover:bg-gray-600 transition-all duration-300 transform hover:scale-105"
+                        >
+                            [ 重新开始 ]
+                        </button>
+                    </div>
+                );
+            case GameStatus.GAME_OVER:
+                return (
+                    <div className="flex flex-col items-center justify-center h-full text-red-500">
+                        <h1 className="text-5xl font-bold">意识连接已断开</h1>
+                        <p className="text-xl mt-4">任务失败。</p>
+                        {state.sedimentGainedOnDefeat && state.sedimentGainedOnDefeat > 0 && (
+                            <p className="text-lg mt-4 text-purple-300 animate-fadeIn">
+                                你回收了 {state.sedimentGainedOnDefeat} 点梦境沉淀。
+                            </p>
+                        )}
+                        {state.missionStartState ? (
+                            <button
+                                onClick={() => dispatch({ type: 'RESTART_FROM_CHECKPOINT' })}
+                                className="mt-12 px-8 py-3 bg-yellow-600 text-white font-bold rounded-md hover:bg-yellow-500 transition-all duration-300 transform hover:scale-105"
+                            >
+                                [ 从任务开始时重来 ]
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => dispatch({ type: 'RESTART_GAME' })}
+                                className="mt-12 px-8 py-3 bg-gray-700 text-white font-bold rounded-md hover:bg-gray-600 transition-all duration-300 transform hover:scale-105"
+                            >
+                                [ 重新开始 ]
+                            </button>
+                        )}
+                    </div>
+                );
+            default:
+                return <div>Unknown game state</div>;
+        }
+    };
 
-  const renderContent = () => {
-    switch (state.status) {
-      case GameStatus.TITLE_SCREEN:
-        return <TitleScreen />;
-      case GameStatus.HUB:
-        return <HubView />;
-      case GameStatus.MISSION_BRIEFING:
-        return <MissionBriefingView />;
-      case GameStatus.IN_MISSION_DIALOGUE:
-        return <DialogueView />;
-      case GameStatus.IN_MISSION_COMBAT:
-        return <CombatView />;
-      case GameStatus.MISSION_VICTORY:
-        return <MissionVictoryView />;
-      case GameStatus.CHOICE_SCREEN:
-        return <ChoiceView />;
-      case GameStatus.GAME_COMPLETE:
-        return (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <h1 className="text-5xl font-bold text-cyan-400">结局</h1>
-            <p className="text-xl mt-4">感谢您的游玩。</p>
-            <button
-                onClick={() => dispatch({ type: 'RESTART_GAME' })}
-                className="mt-12 px-8 py-3 bg-gray-700 text-white font-bold rounded-md hover:bg-gray-600 transition-all duration-300 transform hover:scale-105"
-            >
-                [ 重新开始 ]
-            </button>
-          </div>
-        );
-      case GameStatus.GAME_OVER:
-        return (
-          <div className="flex flex-col items-center justify-center h-full text-red-500">
-            <h1 className="text-5xl font-bold">意识连接已断开</h1>
-            <p className="text-xl mt-4">任务失败。</p>
-            {state.sedimentGainedOnDefeat && state.sedimentGainedOnDefeat > 0 && (
-                <p className="text-lg mt-4 text-purple-300 animate-fadeIn">
-                    你回收了 {state.sedimentGainedOnDefeat} 点梦境沉淀。
-                </p>
-            )}
-            {state.missionStartState ? (
-              <button
-                  onClick={() => dispatch({ type: 'RESTART_FROM_CHECKPOINT' })}
-                  className="mt-12 px-8 py-3 bg-yellow-600 text-white font-bold rounded-md hover:bg-yellow-500 transition-all duration-300 transform hover:scale-105"
-              >
-                  [ 从任务开始时重来 ]
-              </button>
-            ) : (
-              <button
-                  onClick={() => dispatch({ type: 'RESTART_GAME' })}
-                  className="mt-12 px-8 py-3 bg-gray-700 text-white font-bold rounded-md hover:bg-gray-600 transition-all duration-300 transform hover:scale-105"
-              >
-                  [ 重新开始 ]
-              </button>
-            )}
-          </div>
-        );
-      default:
-        return <div>Unknown game state</div>;
-    }
-  };
+    const [displayedContent, setDisplayedContent] = useState(() => renderContentForStatus(state.status));
+    const [animationClass, setAnimationClass] = useState('animate-fadeIn');
+    const prevStatusRef = useRef(state.status);
 
-  return (
-    <div className="h-full flex flex-col relative text-gray-200 bg-black/40">
-      {state.status !== GameStatus.TITLE_SCREEN && <PlayerStatusDisplay />}
-      <div className="flex-grow overflow-y-auto">
-        {renderContent()}
-      </div>
-      {state.newlyAcquiredCardIds && state.newlyAcquiredCardIds.length > 0 && <CardRevealOverlay />}
-      {state.newlyAcquiredEquipmentIds && state.newlyAcquiredEquipmentIds.length > 0 && <EquipmentRevealOverlay />}
-    </div>
-  );
+    useEffect(() => {
+        if (prevStatusRef.current !== state.status) {
+            setAnimationClass('animate-fadeOut');
+            const timer = setTimeout(() => {
+                setDisplayedContent(renderContentForStatus(state.status));
+                setAnimationClass('animate-fadeIn');
+                prevStatusRef.current = state.status;
+            }, 300); // Must match fadeOut animation duration
+
+            return () => clearTimeout(timer);
+        }
+    }, [state.status]);
+
+    return (
+        <div className="h-full flex flex-col relative text-gray-200 bg-black/40">
+            {state.status !== GameStatus.TITLE_SCREEN && <PlayerStatusDisplay />}
+            <div className={`flex-grow overflow-y-auto ${animationClass}`}>
+                {displayedContent}
+            </div>
+            {state.newlyAcquiredCardIds && state.newlyAcquiredCardIds.length > 0 && <CardRevealOverlay />}
+            {state.newlyAcquiredEquipmentIds && state.newlyAcquiredEquipmentIds.length > 0 && <EquipmentRevealOverlay />}
+        </div>
+    );
 };
 
 export default GameScreen;

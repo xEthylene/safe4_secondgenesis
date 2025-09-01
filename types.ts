@@ -3,16 +3,19 @@
 
 
 
+
 export enum GameStatus {
   TITLE_SCREEN,
   HUB,
   MISSION_BRIEFING,
   IN_MISSION_DIALOGUE,
+  COMBAT_START,
   IN_MISSION_COMBAT,
   MISSION_VICTORY,
   GAME_OVER,
   CHOICE_SCREEN,
   GAME_COMPLETE,
+  SUPPLY_STOP,
 }
 
 export enum Character {
@@ -456,6 +459,10 @@ export interface CombatEvent {
   enemies: string[]; // Array of enemy IDs
 }
 
+export interface SupplyStopEvent {
+  type: 'supply_stop';
+}
+
 export interface TitleEvent {
   type: 'title';
   text: string;
@@ -472,7 +479,7 @@ export interface ActionEvent {
   choices?: Choice[];
 }
 
-export type GameEvent = DialogueEvent | CombatEvent | TitleEvent | ActionEvent;
+export type GameEvent = DialogueEvent | CombatEvent | TitleEvent | ActionEvent | SupplyStopEvent;
 
 export interface Mission {
   id: string;
@@ -571,6 +578,10 @@ export interface GameState {
   interimCombatState?: InterimCombatState;
   missionStartState?: GameState;
   sedimentGainedOnDefeat?: number;
+  combatStartInfo?: {
+    enemies: number;
+    waves: number;
+  };
 }
 
 export type GameAction =
@@ -579,6 +590,7 @@ export type GameAction =
   | { type: 'ADVANCE_STORY' }
   | { type: 'SKIP_DIALOGUE' }
   | { type: 'RETURN_TO_HUB' }
+  | { type: 'START_COMBAT' }
   | { type: 'PLAY_CARD'; payload: { cardInstanceId: string; targetId?: string } }
   | { type: 'END_TURN' }
   | { type: 'PROCESS_ENEMY_ACTION' }
@@ -604,4 +616,5 @@ export type GameAction =
   | { type: 'CHOOSE_CARD_TO_GENERATE'; payload: { cardId: string } }
   | { type: 'CHOOSE_EFFECT'; payload: { effect: CardEffect } }
   | { type: 'DEBUG_JUMP_TO_CHAPTER'; payload: { chapter: number } }
-  | { type: 'RESTART_FROM_CHECKPOINT' };
+  | { type: 'RESTART_FROM_CHECKPOINT' }
+  | { type: 'APPLY_SUPPLY_STOP' };

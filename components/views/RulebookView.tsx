@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { RULEBOOK_DATA } from '../../data/rules';
-import { XMarkIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface RulebookViewProps {
     onClose: () => void;

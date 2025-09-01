@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import { Card, CardRarity, StatusEffect, ConstructTemplate } from '../types';
 
 export const MAX_COPIES_PER_RARITY: Record<CardRarity, number> = {
@@ -76,8 +70,8 @@ export const CARDS: Record<string, Card> = {
     effect: { target: 'enemy', damageMultiplier: 0.6, statusEffect: 'burn', statusEffectValue: 4 }, keywords: ['烧伤'],
   },
   'spark': {
-    id: 'spark', name: '点火', description: '造成20%攻击力的伤害。施加3层[烧伤],本回合下一次使用【点火】时费用+1', cost: 0, rarity: CardRarity.COMMON, type: 'attack',
-    effect: { target: 'enemy', damageMultiplier: 0.2, statusEffect: 'burn', statusEffectValue: 3 }, keywords: ['烧伤'],
+    id: 'spark', name: '点火', description: '造成20%攻击力的伤害。施加3层[烧伤]。递增。', cost: 0, rarity: CardRarity.COMMON, type: 'attack',
+    effect: { target: 'enemy', damageMultiplier: 0.2, statusEffect: 'burn', statusEffectValue: 3 }, keywords: ['烧伤', '递增'],
   },
   'exsanguinate': {
     id: 'exsanguinate', name: '失血恶化', description: '获得100%防御力的格挡。如果目标敌人处于[流血]状态，则额外获得100%防御力的格挡。', cost: 1, rarity: CardRarity.COMMON, type: 'skill',
@@ -104,13 +98,13 @@ export const CARDS: Record<string, Card> = {
     effect: { target: 'self', nextAttackCostModifier: -1 },
   },
   'tactical_analysis': {
-    id: 'tactical_analysis', name: '战场扫描', description: '【衍生】选择一张临时(使用后移除)的[瞬斩]或[防御]到手牌中。', cost: 0, rarity: CardRarity.COMMON, type: 'skill',
+    id: 'tactical_analysis', name: '战场扫描', description: '【衍生】选择一张[瞬斩]或[防御]到手牌中。衍生的卡牌带有消耗。', cost: 0, rarity: CardRarity.COMMON, type: 'skill',
     effect: { target: 'self', generateCardChoice: ['quick_slash', 'defend'] }, keywords: ['衍生'],
   },
   'tear_flesh': {
     id: 'tear_flesh',
     name: '撕咬血肉',
-    description: '对敌人造成100%攻击力的伤害，并且消耗对方所有的[流血]点数，每消耗1层，便获得1点格挡。',
+    description: '对敌人造成100%攻击力的伤害，并且花费对方所有的[流血]点数，每花费1层，便获得1点格挡。',
     cost: 1,
     rarity: CardRarity.COMMON,
     type: 'attack',
@@ -123,7 +117,7 @@ export const CARDS: Record<string, Card> = {
   },
   'execution_protocol_recalibrate': {
     id: 'execution_protocol_recalibrate', name: '执行协议：再校准',
-    description: '造成70%攻击力伤害。弃1张牌，抽2张牌。在你的下一个回合开始时，获得1点CP。',
+    description: '造成70%攻击力伤害。弃1张牌，抽2张牌。获得[再校准协议]。',
     cost: 2, rarity: CardRarity.COMMON, type: 'attack',
     effect: {
         target: 'enemy',
@@ -132,7 +126,7 @@ export const CARDS: Record<string, Card> = {
         drawCards: 2,
         statusEffect: 'recalibrate_cp_effect',
         statusEffectDuration: 2,
-    },
+    }, keywords: ['弃牌', '再校准协议']
   },
   'capacitor_deployment': {
     id: 'capacitor_deployment', name: '电容部署',
@@ -183,11 +177,11 @@ export const CARDS: Record<string, Card> = {
     effect: { gainBlockMultiplier: 1.0, grantsCounter: 'counter_strike', target: 'self' }, keywords: ['反击'],
   },
   'overclock_strike': {
-    id: 'overclock_strike', name: '极限驱动', description: '消耗8点HP，造成200%攻击力的伤害。此牌不消耗CP。', cost: 0, rarity: CardRarity.RARE, type: 'attack',
+    id: 'overclock_strike', name: '极限驱动', description: '花费8点HP，造成200%攻击力的伤害。此牌不消耗CP。', cost: 0, rarity: CardRarity.RARE, type: 'attack',
     effect: { damageMultiplier: 2.0, overclockCost: 8, target: 'enemy' }, keywords: ['过载'],
   },
   'release_power': {
-    id: 'release_power', name: '核心能量释放', description: '消耗至多3层[充能]。每层[充能]造成80%攻击力的伤害。', cost: 2, rarity: CardRarity.RARE, type: 'attack',
+    id: 'release_power', name: '核心能量释放', description: '花费至多3层[充能]。每层[充能]造成80%攻击力的伤害。', cost: 2, rarity: CardRarity.RARE, type: 'attack',
     effect: { consumeChargeMultiplier: 0.8, maxConsumeCharge: 3, target: 'enemy' }, keywords: ['充能'],
   },
   'tactical_cycle': {
@@ -203,7 +197,7 @@ export const CARDS: Record<string, Card> = {
     effect: { damageMultiplier: 0.5, gainCpOnKill: 3, target: 'enemy' }
   },
   'chain_reaction': {
-    id: 'chain_reaction', name: '连锁反应', description: '获得3个[连锁]状态', cost: 3, rarity: CardRarity.RARE, type: 'skill',
+    id: 'chain_reaction', name: '连锁反应', description: '获得3层[连锁]状态。', cost: 3, rarity: CardRarity.RARE, type: 'skill',
     effect: { statusEffect: 'chaining', statusEffectDuration: 999, statusEffectValue: 3, target: 'self' }, keywords: ['连锁'],
   },
   'concentrate_fire': {
@@ -220,14 +214,14 @@ export const CARDS: Record<string, Card> = {
   },
   'overdrive': {
     id: 'overdrive', name: '超频运转',
-    description: '选择一项：\n• 消耗5点[充能]，抽3张牌。\n• 获得3点[充能]，抽1张牌。',
+    description: '抉择：\n• 花费5点[充能]，抽3张牌。\n• 获得3点[充能]，抽1张牌。',
     cost: 1, rarity: CardRarity.RARE, type: 'skill',
     effect: {
       target: 'self',
       choiceEffect: {
         options: [
           {
-            description: '消耗5充能，抽3张牌',
+            description: '花费5充能，抽3张牌',
             effect: { target: 'self', chargeCost: 5, drawCards: 3 }
           },
           {
@@ -236,22 +230,22 @@ export const CARDS: Record<string, Card> = {
           }
         ]
       }
-    }, keywords: ['充能'],
+    }, keywords: ['充能', '抉择'],
   },
   'cauterize': {
     id: 'cauterize', name: '热能固化', description: '获得80%防御力的格挡。如果目标敌人处于[烧伤]状态，额外获得80%防御力的格挡。', cost: 1, rarity: CardRarity.RARE, type: 'skill',
     effect: { target: 'enemy', gainBlockMultiplier: 0.8, bonusEffect: { condition: 'target_has_burn', effect: { gainBlockMultiplier: 0.8 } } }, keywords: ['烧伤'],
   },
   'lightning_reflexes': {
-    id: 'lightning_reflexes', name: '反应优化', description: '获得50%防御力的格挡。下回合开始时，获得3点[充能]。', cost: 1, rarity: CardRarity.RARE, type: 'skill',
-    effect: { target: 'self', gainBlockMultiplier: 0.5, statusEffect: 'charge_next_turn', statusEffectDuration: 2, statusEffectValue: 3 }, keywords: ['充能'],
+    id: 'lightning_reflexes', name: '反应优化', description: '获得50%防御力的格挡。获得[蓄能]。', cost: 1, rarity: CardRarity.RARE, type: 'skill',
+    effect: { target: 'self', gainBlockMultiplier: 0.5, statusEffect: 'charge_next_turn', statusEffectDuration: 2, statusEffectValue: 3 }, keywords: ['充能', '蓄能'],
   },
   'hemorrhage': {
     id: 'hemorrhage', name: '动脉破裂', description: '造成70%攻击力的伤害。施加8层[流血]。抽1张牌。', cost: 1, rarity: CardRarity.RARE, type: 'attack',
     effect: { target: 'enemy', damageMultiplier: 0.7, statusEffect: 'bleed', statusEffectValue: 8, drawCards: 1 }, keywords: ['流血'],
   },
   'flesh_and_blood': {
-    id: 'flesh_and_blood', name: '血债血偿', description: '消耗至多3层[流血]，每层[流血]造成70%攻击力的伤害。', cost: 1, rarity: CardRarity.RARE, type: 'attack',
+    id: 'flesh_and_blood', name: '血债血偿', description: '花费至多3层[流血]，每层[流血]造成70%攻击力的伤害。', cost: 1, rarity: CardRarity.RARE, type: 'attack',
     effect: { 
         target: 'enemy', 
         consumeStatus: { effectId: 'bleed', damagePerStackMultiplier: 0.70, maxConsumeStacks: 3 } 
@@ -318,23 +312,23 @@ export const CARDS: Record<string, Card> = {
     effect: { target: 'all_enemies', damageMultiplier: 1.0, onDiscard: { target: 'all_enemies', drawCards: 1, damageMultiplier: 0.5 } }, keywords: ['弃牌'],
   },
   'magitech_blade_arts_1': {
-    id: 'magitech_blade_arts_1', name: '魔导剑术 - 序', description: '造成100%攻击力伤害，那之后这张卡移除本场游戏，并且向牌库加入【魔导剑术 - 破】', cost: 2, rarity: CardRarity.RARE, type: 'attack',
-    effect: { target: 'enemy', damageMultiplier: 1.0, exhausts: true, addCardToDeck: ['magitech_blade_arts_2'] }, keywords: ['衍生'],
+    id: 'magitech_blade_arts_1', name: '魔导剑术 - 序', description: '造成100%攻击力伤害，并且向牌库加入【魔导剑术 - 破】。消耗。', cost: 2, rarity: CardRarity.RARE, type: 'attack',
+    effect: { target: 'enemy', damageMultiplier: 1.0, exhausts: true, addCardToDeck: ['magitech_blade_arts_2'] }, keywords: ['衍生', '消耗'],
   },
   'limit_break': {
-    id: 'limit_break', name: '限制解除', description: '获得5层【连锁】，但回合结束时丢弃所有的手牌。', cost: 2, rarity: CardRarity.RARE, type: 'skill',
-    effect: { target: 'self', statusEffect: 'limit_break', statusEffectDuration: 2 }, keywords: ['连锁'],
+    id: 'limit_break', name: '限制解除', description: '获得5层[连锁]。获得[限制解除]状态。', cost: 2, rarity: CardRarity.RARE, type: 'skill',
+    effect: { target: 'self', statusEffect: 'limit_break', statusEffectDuration: 2 }, keywords: ['连锁', '限制解除'],
   },
   'magitech_terminal_infinite': {
-    id: 'magitech_terminal_infinite', name: '魔导终端-无限', description: '消耗2充能抽2张卡，那之后这张卡回到手卡并且本回合+1点cp消耗。', cost: 1, rarity: CardRarity.RARE, type: 'skill',
-    effect: { target: 'self', chargeCost: 2, drawCards: 2, returnsToHand: true, costIncreaseOnUseThisTurn: 1 }, keywords: ['充能', '衍生']
+    id: 'magitech_terminal_infinite', name: '魔导终端-无限', description: '花费2点[充能]抽2张牌。无限。递增。', cost: 1, rarity: CardRarity.RARE, type: 'skill',
+    effect: { target: 'self', chargeCost: 2, drawCards: 2, returnsToHand: true, costIncreaseOnUseThisTurn: 1 }, keywords: ['充能', '衍生', '无限', '递增']
   },
   'overload_cycle': {
-    id: 'overload_cycle', name: '超载循环', description: '消耗至多3层[充能]。每消耗1层[充能]，抽1张牌，然后弃1张牌。', cost: 1, rarity: CardRarity.RARE, type: 'skill',
+    id: 'overload_cycle', name: '超载循环', description: '花费至多3层[充能]。每花费1层[充能]，抽1张牌，然后弃1张牌。', cost: 1, rarity: CardRarity.RARE, type: 'skill',
     effect: { target: 'self', maxConsumeCharge: 3, drawPerChargeConsumed: 1, discardPerChargeConsumed: 1 }, keywords: ['充能', '弃牌'],
   },
   'molten_heart': {
-    id: 'molten_heart', name: '熔火之心', description: '所有的敌人都有烧伤时才能发动，抽2张卡。',
+    id: 'molten_heart', name: '熔火之心', description: '所有的敌人都有[烧伤]时才能发动，抽2张卡。',
     cost: 1, rarity: CardRarity.RARE, type: 'power',
     effect: { target: 'self', playCondition: { allEnemiesMustHaveStatus: 'burn' }, drawCards: 2 }, keywords: ['能力', '烧伤']
   },
@@ -369,20 +363,20 @@ export const CARDS: Record<string, Card> = {
   },
   'opening_ceremony': {
     id: 'opening_ceremony', name: '开幕仪典',
-    description: '抽1张牌。在你的下一个回合开始时，你手牌中所有牌的费用-1。',
+    description: '抽1张牌。获得[开幕仪典]状态。',
     cost: 3, rarity: CardRarity.RARE, type: 'skill',
     effect: {
         target: 'self',
         drawCards: 1,
         statusEffect: 'opening_ceremony_effect',
         statusEffectDuration: 2,
-    },
+    }, keywords: ['开幕仪典'],
   },
   'magitech_terminal_recursive': {
     id: 'magitech_terminal_recursive', name: '魔导终端-递归回路',
-    description: '获得2点充能，那之后这张卡回到手卡。',
+    description: '获得2点[充能]。无限。',
     cost: 1, rarity: CardRarity.RARE, type: 'skill',
-    effect: { target: 'self', gainCharge: 2, returnsToHand: true }, keywords: ['充能']
+    effect: { target: 'self', gainCharge: 2, returnsToHand: true }, keywords: ['充能', '无限']
   },
   'antagonistic_confluence': {
     id: 'antagonistic_confluence', name: '背反合流',
@@ -414,7 +408,7 @@ export const CARDS: Record<string, Card> = {
   },
   'toxic_backlash': {
     id: 'toxic_backlash', name: '毒性反噬',
-    description: '选择一项：对一名敌人造成等同于其[中毒]层数x20%攻击力的伤害；或你恢复等同于其[中毒]层数x2的HP。那之后，移除该敌人一半的[中毒]层数。',
+    description: '抉择：对一名敌人造成等同于其[中毒]层数x20%攻击力的伤害；或你恢复等同于其[中毒]层数x2的HP。那之后，移除该敌人一半的[中毒]层数。',
     cost: 1, rarity: CardRarity.RARE, type: 'skill',
     effect: {
         target: 'enemy',
@@ -434,9 +428,9 @@ export const CARDS: Record<string, Card> = {
   },
   'envenom': {
     id: 'envenom', name: '淬毒',
-    description: '本回合所有的攻击牌都为敌人施加1层[中毒]。',
+    description: '获得[淬毒]状态。',
     cost: 2, rarity: CardRarity.RARE, type: 'skill',
-    effect: { target: 'self', statusEffect: 'envenom_effect', statusEffectDuration: 1 }, keywords: ['中毒']
+    effect: { target: 'self', statusEffect: 'envenom_effect', statusEffectDuration: 1 }, keywords: ['中毒', '淬毒']
   },
 
   // --- EPIC ---
@@ -449,7 +443,7 @@ export const CARDS: Record<string, Card> = {
     effect: { gainBlockMultiplier: 3.0, target: 'self' },
   },
   'final_spark': {
-    id: 'final_spark', name: '终极闪光', description: '消耗至多10层[充能]。每层[充能]造成85%攻击力的伤害，并无视格挡。', cost: 4, rarity: CardRarity.EPIC, type: 'attack',
+    id: 'final_spark', name: '终极闪光', description: '花费至多10层[充能]。每层[充能]造成85%攻击力的伤害，并无视格挡。', cost: 4, rarity: CardRarity.EPIC, type: 'attack',
     effect: { consumeChargeMultiplier: 0.85, maxConsumeCharge: 10, pierceMultiplier: 1.0, target: 'enemy' }, keywords: ['充能', '贯穿'],
   },
   'system_shock': {
@@ -465,7 +459,7 @@ export const CARDS: Record<string, Card> = {
     effect: { gainBlockMultiplier: 2.0, drawCards: 2, target: 'self' }
   },
   'overload_annihilation_beam': {
-    id: 'overload_annihilation_beam', name: '超限：湮灭序列', description: '消耗15点HP。对所有敌人造成220%攻击力的伤害。', cost: 0, rarity: CardRarity.EPIC, type: 'attack',
+    id: 'overload_annihilation_beam', name: '超限：湮灭序列', description: '花费15点HP。对所有敌人造成220%攻击力的伤害。', cost: 0, rarity: CardRarity.EPIC, type: 'attack',
     effect: { damageMultiplier: 2.2, target: 'all_enemies', overclockCost: 15 }, keywords: ['过载'],
   },
   'final_bastion': {
@@ -473,24 +467,24 @@ export const CARDS: Record<string, Card> = {
     effect: { gainBlockMultiplier: 4.0, target: 'self' },
   },
   'immolation': {
-    id: 'immolation', name: '活体熔炉', description: '消耗至多10层[烧伤]。每层[烧伤]造成65%攻击力的伤害。', cost: 2, rarity: CardRarity.EPIC, type: 'attack',
+    id: 'immolation', name: '活体熔炉', description: '花费至多10层[烧伤]。每层[烧伤]造成65%攻击力的伤害。', cost: 2, rarity: CardRarity.EPIC, type: 'attack',
     effect: { target: 'enemy', consumeStatus: { effectId: 'burn', damagePerStackMultiplier: 0.65, maxConsumeStacks: 10 } }, keywords: ['烧伤'],
   },
   'blood_rite': {
-    id: 'blood_rite', name: '鲜血圣餐', description: '如果敌人有[流血]则抽2张牌并且消耗目标敌人所有[流血]层数。每层[流血]为你恢复3点HP。', cost: 1, rarity: CardRarity.EPIC, type: 'skill',
+    id: 'blood_rite', name: '鲜血圣餐', description: '如果敌人有[流血]则抽2张牌并且花费目标敌人所有[流血]层数。每层[流血]为你恢复3点HP。', cost: 1, rarity: CardRarity.EPIC, type: 'skill',
     effect: { target: 'enemy', consumeStatus: { effectId: 'bleed', healPerStack: 3 }, bonusEffect: { condition: 'target_has_bleed', effect: { drawCards: 2 } } }, keywords: ['流血'],
   },
   'detonate': {
-    id: 'detonate', name: '过载熔毁', description: '消耗目标敌人所有[烧伤]层数。对所有敌人造成等同于消耗层数x5的固定伤害。', cost: 2, rarity: CardRarity.EPIC, type: 'attack',
+    id: 'detonate', name: '过载熔毁', description: '花费目标敌人所有[烧伤]层数。对所有敌人造成等同于花费层数x5的固定伤害。', cost: 2, rarity: CardRarity.EPIC, type: 'attack',
     effect: { target: 'enemy', consumeStatus: { effectId: 'burn', damagePerStack: 5, target: 'all_enemies' } }, keywords: ['烧伤'],
   },
   'rupture': {
-    id: 'rupture', name: '深度撕裂', description: '消耗至多10层[流血]。每层[流血]对其造成65%攻击力的伤害。', cost: 2, rarity: CardRarity.EPIC, type: 'attack',
+    id: 'rupture', name: '深度撕裂', description: '花费至多10层[流血]。每层[流血]对其造成65%攻击力的伤害。', cost: 2, rarity: CardRarity.EPIC, type: 'attack',
     effect: { target: 'enemy', consumeStatus: { effectId: 'bleed', damagePerStackMultiplier: 0.65, maxConsumeStacks: 10 } }, keywords: ['流血'],
   },
   'conflagration': {
-    id: 'conflagration', name: '焚尽万象', description: '获得[烈焰焚烧]状态。此牌在本场战斗中移除，并获得一张[爆炎新星]。', cost: 4, rarity: CardRarity.EPIC, type: 'power',
-    effect: { target: 'self', statusEffect: 'conflagration_effect', statusEffectDuration: 999, addCardToHand: 'blazing_nova' }, keywords: ['能力', '烧伤'],
+    id: 'conflagration', name: '焚尽万象', description: '获得[烈焰焚烧]状态。获得一张[爆炎新星]。消耗。', cost: 4, rarity: CardRarity.EPIC, type: 'power',
+    effect: { target: 'self', statusEffect: 'conflagration_effect', statusEffectDuration: 999, addCardToHand: 'blazing_nova' }, keywords: ['能力', '烧伤', '消耗'],
   },
   'wildfire': {
     id: 'wildfire', name: '燎原', description: '将目标敌人50%的[烧伤]层数施加给所有其他敌人。', cost: 2, rarity: CardRarity.EPIC, type: 'skill',
@@ -503,7 +497,7 @@ export const CARDS: Record<string, Card> = {
   'feverish_calculation': {
     id: 'feverish_calculation',
     name: '狂热演算',
-    description: '打出后这张卡移除本场游戏，进入【狂热计算】状态，并且把两张【狂热突袭】加入牌库。【狂热计算】状态：每当你弃牌时，对随机一名敌人造成30%攻击力的伤害。',
+    description: '获得[狂热计算]状态，并将两张【狂热突袭】加入牌库。消耗。',
     cost: 4,
     rarity: CardRarity.EPIC,
     type: 'power',
@@ -514,7 +508,7 @@ export const CARDS: Record<string, Card> = {
         statusEffectDuration: 999,
         addCardToDeck: ['feverish_strike', 'feverish_strike']
     },
-    keywords: ['能力', '弃牌'],
+    keywords: ['能力', '弃牌', '消耗', '狂热计算'],
   },
   'bloody_legacy': {
     id: 'bloody_legacy', name: '血色遗言', description: '获得等同于目标敌人[流血]层数x50%防御力的格挡。被弃置时对所有敌人施加4层[流血]。', cost: 1, rarity: CardRarity.EPIC, type: 'skill',
@@ -522,22 +516,22 @@ export const CARDS: Record<string, Card> = {
   },
   'overload_stream': {
     id: 'overload_stream', name: '过载冲流', description: '这张卡在手牌时，其他卡每发动一次都减1点cp消耗。造成500%攻击力的伤害。', cost: 20, rarity: CardRarity.EPIC, type: 'attack',
-    effect: { target: 'enemy', damageMultiplier: 5.0, costReductionOnCardPlay: 1 }, keywords: ['终结'],
+    effect: { target: 'enemy', damageMultiplier: 5.0, costReductionOnCardPlay: 1 }, keywords: ['终幕'],
   },
   'scrap_assembly_1': {
-    id: 'scrap_assembly_1', name: '废品组装-初', description: '丢弃一张手牌，恢复3cp，那之后这张卡移除本场游戏，并且向牌库加入【废品组装 - 破】。', cost: 2, rarity: CardRarity.EPIC, type: 'skill',
-    effect: { target: 'self', discardCards: { count: 1, from: 'hand' }, gainCp: 3, exhausts: true, addCardToDeck: ['scrap_assembly_2'] }, keywords: ['弃牌', '衍生'],
+    id: 'scrap_assembly_1', name: '废品组装-初', description: '丢弃一张手牌，恢复3cp，并将【废品组装 - 破】加入牌库。消耗。', cost: 2, rarity: CardRarity.EPIC, type: 'skill',
+    effect: { target: 'self', discardCards: { count: 1, from: 'hand' }, gainCp: 3, exhausts: true, addCardToDeck: ['scrap_assembly_2'] }, keywords: ['弃牌', '衍生', '消耗'],
   },
   'magitech_terminal_prototype': {
-    id: 'magitech_terminal_prototype', name: '魔导终端-原型', description: '消耗3充能抽3张卡，那之后这张卡移除本场游戏，并且向牌库加入一张【能量上载】。', cost: 1, rarity: CardRarity.EPIC, type: 'skill',
-    effect: { target: 'self', chargeCost: 3, drawCards: 3, exhausts: true, addCardToDeck: ['charge_up'] }, keywords: ['充能', '衍生'],
+    id: 'magitech_terminal_prototype', name: '魔导终端-原型', description: '花费3点[充能]抽3张牌，并将一张【能量上载】加入牌库。消耗。', cost: 1, rarity: CardRarity.EPIC, type: 'skill',
+    effect: { target: 'self', chargeCost: 3, drawCards: 3, exhausts: true, addCardToDeck: ['charge_up'] }, keywords: ['充能', '衍生', '消耗'],
   },
   'phase_horizon': {
-    id: 'phase_horizon', name: '超现象相位视界', description: '获得150%防御力的格挡。将一张0费的【相位闪现】置入手牌。那之后这张卡在本场游戏中移除。', cost: 3, rarity: CardRarity.EPIC, type: 'skill',
-    effect: { target: 'self', gainBlockMultiplier: 1.5, addCardToHand: 'phase_flash', exhausts: true }, keywords: ['衍生']
+    id: 'phase_horizon', name: '超现象相位视界', description: '获得150%防御力的格挡。将一张0费的【相位闪现】置入手牌。消耗。', cost: 3, rarity: CardRarity.EPIC, type: 'skill',
+    effect: { target: 'self', gainBlockMultiplier: 1.5, addCardToHand: 'phase_flash', exhausts: true }, keywords: ['衍生', '消耗'],
   },
   'heat_siphon': {
-    id: 'heat_siphon', name: '热能虹吸', description: '移除目标敌人7层[烧伤]才能发动，抽1张牌，那之后这张卡回到手卡。',
+    id: 'heat_siphon', name: '热能虹吸', description: '花费目标敌人7层[烧伤]才能发动，抽1张牌。无限。',
     cost: 1, rarity: CardRarity.EPIC, type: 'skill',
     effect: {
       target: 'enemy',
@@ -545,15 +539,15 @@ export const CARDS: Record<string, Card> = {
       consumeStatus: { effectId: 'burn', stacksToRemove: 7 },
       drawCards: 1,
       returnsToHand: true
-    }, keywords: ['烧伤']
+    }, keywords: ['烧伤', '无限']
   },
   'kindling': {
-    id: 'kindling', name: '薪火', description: '进入【薪火】状态。在你的回合开始时，若场上所有敌人身上的[烧伤]层数总和不低于15，抽1张牌，衍生一张临时的【熔火之心】到手牌，然后移除此状态。',
+    id: 'kindling', name: '薪火', description: '获得[薪火]状态。',
     cost: 3, rarity: CardRarity.EPIC, type: 'power',
-    effect: { target: 'self', statusEffect: 'kindling_effect', statusEffectDuration: 999 }, keywords: ['能力', '烧伤']
+    effect: { target: 'self', statusEffect: 'kindling_effect', statusEffectDuration: 999 }, keywords: ['能力', '烧伤', '薪火']
   },
   'pain_echo': {
-    id: 'pain_echo', name: '痛苦回响', description: '(能量牌) 进入【痛苦回响】状态，将2张0费的【苦痛】置入卡组，那之后这张卡从本场游戏移除。每回合结束时，如果本回合有人因流血而受伤，将2张0费的【苦痛】置入卡组。',
+    id: 'pain_echo', name: '痛苦回响', description: '获得[痛苦回响]状态，将2张0费的【苦痛】置入卡组。消耗。',
     cost: 4, rarity: CardRarity.EPIC, type: 'power',
     effect: {
       target: 'self',
@@ -561,11 +555,11 @@ export const CARDS: Record<string, Card> = {
       statusEffectDuration: 999,
       addCardToDeck: ['pain', 'pain'],
       exhausts: true,
-    }, keywords: ['能力', '流血']
+    }, keywords: ['能力', '流血', '消耗', '痛苦回响']
   },
   'alchemy': {
     id: 'alchemy', name: '炼金术',
-    description: '对一名敌人使用，清除目标所有[中毒]层数，那之后自己抽一张卡。这张卡使用后回到手卡。',
+    description: '清除目标所有[中毒]层数，那之后自己抽一张卡。无限。',
     cost: 0, rarity: CardRarity.EPIC, type: 'skill',
     effect: {
         playCondition: { requiresStatus: { effectId: 'poison', minStacks: 1 } },
@@ -573,7 +567,7 @@ export const CARDS: Record<string, Card> = {
         consumeStatus: { effectId: 'poison', stacksToRemove: 999 },
         drawCards: 1,
         returnsToHand: true
-    }, keywords: ['中毒']
+    }, keywords: ['中毒', '无限']
   },
 
   // --- UNOBTAINABLE / GENERATED ---
@@ -586,28 +580,28 @@ export const CARDS: Record<string, Card> = {
     effect: { target: 'all_enemies', statusEffect: 'burn', statusEffectValue: 5 }, keywords: ['烧伤', '衍生'], unobtainable: true,
   },
   'feverish_strike': {
-    id: 'feverish_strike', name: '狂热突袭', description: '对一名敌人造成100%攻击力的伤害，抽1张卡。这张卡被丢弃时，抽一张卡。使用后，回合结束时随机丢弃2张卡。', cost: 1, rarity: CardRarity.EPIC, type: 'attack',
-    effect: { target: 'enemy', damageMultiplier: 1.0, drawCards: 1, onDiscard: { target: 'self', drawCards: 1 } }, keywords: ['弃牌', '衍生'], unobtainable: true,
+    id: 'feverish_strike', name: '狂热突袭', description: '对一名敌人造成100%攻击力的伤害，抽1张卡。这张卡被弃置时，抽一张卡。回合结束时，随机丢弃2张卡。消耗。', cost: 1, rarity: CardRarity.EPIC, type: 'attack',
+    effect: { target: 'enemy', damageMultiplier: 1.0, drawCards: 1, onDiscard: { target: 'self', drawCards: 1 } }, keywords: ['弃牌', '衍生', '消耗'], unobtainable: true,
   },
   'magitech_blade_arts_2': {
-    id: 'magitech_blade_arts_2', name: '魔导剑术 - 破', description: '造成100%攻击力伤害并且恢复1cp，那之后这张卡移除本场游戏，并且向牌库加入【魔导剑术 - 终】', cost: 1, rarity: CardRarity.RARE, type: 'attack',
-    effect: { target: 'enemy', damageMultiplier: 1.0, gainCp: 1, exhausts: true, addCardToDeck: ['magitech_blade_arts_3'] }, keywords: ['衍生'], unobtainable: true,
+    id: 'magitech_blade_arts_2', name: '魔导剑术 - 破', description: '造成100%攻击力伤害并且恢复1cp，并向牌库加入【魔导剑术 - 终】。消耗。', cost: 1, rarity: CardRarity.RARE, type: 'attack',
+    effect: { target: 'enemy', damageMultiplier: 1.0, gainCp: 1, exhausts: true, addCardToDeck: ['magitech_blade_arts_3'] }, keywords: ['衍生', '消耗'], unobtainable: true,
   },
   'magitech_blade_arts_3': {
     id: 'magitech_blade_arts_3', name: '魔导剑术 - 终', description: '造成100%攻击力伤害并且恢复1cp.', cost: 0, rarity: CardRarity.RARE, type: 'attack',
     effect: { target: 'enemy', damageMultiplier: 1.0, gainCp: 1 }, keywords: ['衍生'], unobtainable: true,
   },
   'scrap_assembly_2': {
-    id: 'scrap_assembly_2', name: '废品组装-破', description: '丢弃一张手牌，恢复1cp，那之后这张卡移除本场游戏，并且向牌库加入【废品组装 - 终】。', cost: 0, rarity: CardRarity.EPIC, type: 'skill',
-    effect: { target: 'self', discardCards: { count: 1, from: 'hand' }, gainCp: 1, exhausts: true, addCardToDeck: ['scrap_assembly_3'] }, keywords: ['弃牌', '衍生'], unobtainable: true,
+    id: 'scrap_assembly_2', name: '废品组装-破', description: '丢弃一张手牌，恢复1cp，并将【废品组装 - 终】加入牌库。消耗。', cost: 0, rarity: CardRarity.EPIC, type: 'skill',
+    effect: { target: 'self', discardCards: { count: 1, from: 'hand' }, gainCp: 1, exhausts: true, addCardToDeck: ['scrap_assembly_3'] }, keywords: ['弃牌', '衍生', '消耗'], unobtainable: true,
   },
   'scrap_assembly_3': {
-    id: 'scrap_assembly_3', name: '废品组装-终', description: '恢复1cp，那之后这张卡移除本场游戏，并且向牌库加入【废品龙装加农炮】。', cost: 0, rarity: CardRarity.EPIC, type: 'skill',
-    effect: { target: 'self', gainCp: 1, exhausts: true, addCardToDeck: ['scrap_dragon_cannon'] }, keywords: ['衍生'], unobtainable: true,
+    id: 'scrap_assembly_3', name: '废品组装-终', description: '恢复1cp，并将【废品龙装加农炮】加入牌库。消耗。', cost: 0, rarity: CardRarity.EPIC, type: 'skill',
+    effect: { target: 'self', gainCp: 1, exhausts: true, addCardToDeck: ['scrap_dragon_cannon'] }, keywords: ['衍生', '消耗'], unobtainable: true,
   },
   'scrap_dragon_cannon': {
-    id: 'scrap_dragon_cannon', name: '废品龙装加农炮', description: '丢弃一张手牌，对敌人造成150%攻击力的伤害。这张卡使用后回到手卡。【终幕】：恢复1cp.', cost: 0, rarity: CardRarity.EPIC, type: 'attack',
-    effect: { target: 'enemy', discardCards: { count: 1, from: 'hand' }, damageMultiplier: 1.5, returnsToHand: true, finisherEffect: { target: 'self', gainCp: 1 } }, keywords: ['弃牌', '衍生', '终幕'], unobtainable: true,
+    id: 'scrap_dragon_cannon', name: '废品龙装加农炮', description: '丢弃一张手牌，对敌人造成150%攻击力的伤害。无限。【终幕】：恢复1cp.', cost: 0, rarity: CardRarity.EPIC, type: 'attack',
+    effect: { target: 'enemy', discardCards: { count: 1, from: 'hand' }, damageMultiplier: 1.5, returnsToHand: true, finisherEffect: { target: 'self', gainCp: 1 } }, keywords: ['弃牌', '衍生', '终幕', '无限'], unobtainable: true,
   },
   'phase_flash': {
     id: 'phase_flash', name: '相位闪现', description: '获得50%防御力的格挡。抽1张牌。', cost: 0, rarity: CardRarity.EPIC, type: 'skill',
@@ -616,7 +610,7 @@ export const CARDS: Record<string, Card> = {
   'stench': {
     id: 'stench',
     name: '恶臭',
-    description: '【状态】抽到这张卡时，受到10%最大生命值的伤害，那之后这张卡移除本场游戏。',
+    description: '【状态】抽到这张卡时，受到10%最大生命值的伤害。消耗。',
     cost: 0,
     rarity: CardRarity.COMMON,
     type: 'skill',
@@ -624,29 +618,29 @@ export const CARDS: Record<string, Card> = {
         target: 'self',
         onDraw: { damagePercentMaxHp: 0.1, exhausts: true }
     },
-    keywords: ['状态'],
+    keywords: ['状态', '消耗'],
     unobtainable: true,
   },
   'confusion': {
     id: 'confusion',
     name: '困惑',
-    description: '【状态】恢复1点CP。将自身移除。',
+    description: '【状态】恢复1点CP。消耗。',
     cost: 0,
     rarity: CardRarity.COMMON,
     type: 'skill',
     effect: { target: 'self', gainCp: 1, exhausts: true },
-    keywords: ['状态'],
+    keywords: ['状态', '消耗'],
     unobtainable: true,
   },
   'pain': {
-    id: 'pain', name: '苦痛', description: '抽2张牌。那之后这张卡移除本场游戏。',
+    id: 'pain', name: '苦痛', description: '抽2张牌。消耗。',
     cost: 0, rarity: CardRarity.COMMON, type: 'skill',
-    effect: { target: 'self', drawCards: 2, exhausts: true }, keywords: ['衍生'], unobtainable: true,
+    effect: { target: 'self', drawCards: 2, exhausts: true }, keywords: ['衍生', '消耗'], unobtainable: true,
   },
   'discharge': {
-    id: 'discharge', name: '放电', description: '获得1点CP。使用后移除本场游戏。',
+    id: 'discharge', name: '放电', description: '获得1点CP。消耗。',
     cost: 0, rarity: CardRarity.COMMON, type: 'skill',
-    effect: { target: 'self', gainCp: 1, exhausts: true }, keywords: ['衍生'], unobtainable: true,
+    effect: { target: 'self', gainCp: 1, exhausts: true }, keywords: ['衍生', '消耗'], unobtainable: true,
   },
   'shield_repair': {
     id: 'shield_repair', name: '护盾修复', description: '获得50%的格挡。',
@@ -761,7 +755,7 @@ export const ENEMY_CARDS: Record<string, Card> = {
   'enemy_tear_flesh': {
     id: 'enemy_tear_flesh',
     name: '撕咬血肉',
-    description: '造成100%攻击力的伤害，并且消耗对方所有的[流血]点数，每消耗1层，便获得1点格挡。',
+    description: '造成100%攻击力的伤害，并且花费对方所有的[流血]点数，每花费1层，便获得1点格挡。',
     cost: 0,
     rarity: CardRarity.COMMON,
     type: 'attack',
@@ -774,7 +768,7 @@ export const ENEMY_CARDS: Record<string, Card> = {
   'corrupting_miasma': {
     id: 'corrupting_miasma',
     name: '腐败瘴气',
-    description: '将2张0费的【恶臭】洗入玩家的牌库，那之后这张卡移除本场游戏。',
+    description: '将2张0费的【恶臭】洗入玩家的牌库。消耗。',
     cost: 0,
     rarity: CardRarity.RARE,
     type: 'skill',
@@ -815,7 +809,7 @@ export const ENEMY_CARDS: Record<string, Card> = {
   'annihilation_mode_activate': {
     id: 'annihilation_mode_activate',
     name: '歼灭模式-启动',
-    description: '获得50点格挡与永久的[强化]状态。',
+    description: '获得50点格挡与[歼灭模式]状态。消耗。',
     cost: 0,
     rarity: CardRarity.EPIC,
     type: 'skill',
@@ -846,7 +840,7 @@ export const ENEMY_CARDS: Record<string, Card> = {
   },
   'martyrdom_blast': {
     id: 'martyrdom_blast', name: '殉爆',
-    description: '对目标造成200%攻击力伤害，并施加5层[烧伤]，对自己造成1000%攻击力伤害。',
+    description: '对目标造成200%攻击力伤害，并施加5层[烧伤]，对自己造成1000%攻击力伤害。消耗。',
     cost: 0, rarity: CardRarity.EPIC, type: 'attack',
     effect: { damageMultiplier: 2.0, statusEffect: 'burn', statusEffectValue: 5, selfDamageMultiplier: 10.0, target: 'enemy', exhausts: true }
   },

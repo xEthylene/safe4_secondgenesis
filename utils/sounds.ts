@@ -13,7 +13,9 @@ export type SoundKey =
     'status_damage' |
     'end_turn' |
     'ui_click' |
-    'ui_button_press';
+    'ui_button_press' |
+    'power_up' |
+    'combat_start';
 
 // 1. 创建一个映射，将我们的音效键名关联到真实的音频文件路径
 // *** 您可以在这里修改或添加自己的音频文件路径 ***
@@ -30,6 +32,8 @@ const soundMap: Record<SoundKey, string> = {
     'end_turn': '/sounds/end_turn.mp3',
     'ui_click': '/sounds/ui_click.ogg',
     'ui_button_press': '/sounds/ui_button_press.ogg',
+    'power_up': '/sounds/end_turn.mp3',
+    'combat_start': '/sounds/playcard.ogg',
 };
 
 // 2. 存储当前正在播放的音频实例，以支持快速连续播放

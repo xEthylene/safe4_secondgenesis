@@ -66,17 +66,39 @@ const FloatingText: React.FC<{ text: string; color: string }> = ({ text, color }
 type FloatingTextItem = { id: number; text: string; color: string };
 
 const StatusEffectIcon: React.FC<{ effect: StatusEffect; parentAnimationClass: string; }> = ({ effect, parentAnimationClass }) => {
+    const iconRef = useRef<HTMLDivElement>(null);
+    const [tooltipClass, setTooltipClass] = useState('left-1/2 -translate-x-1/2');
+
+    const handleMouseEnter = () => {
+        if (iconRef.current) {
+            const rect = iconRef.current.getBoundingClientRect();
+            const tooltipWidth = 192; // w-48 is 12rem = 192px
+            const screenPadding = 8;
+            const screenWidth = window.innerWidth;
+            const iconCenter = rect.left + rect.width / 2;
+            
+            if (iconCenter + tooltipWidth / 2 > screenWidth - screenPadding) {
+                setTooltipClass('right-0');
+            } 
+            else if (iconCenter - tooltipWidth / 2 < screenPadding) {
+                setTooltipClass('left-0');
+            } else {
+                setTooltipClass('left-1/2 -translate-x-1/2');
+            }
+        }
+    };
+
     const pulseClass =
       parentAnimationClass === 'animate-burn' && effect.id === 'burn' ? 'animate-burn' :
       parentAnimationClass === 'animate-bleed' && effect.id === 'bleed' ? 'animate-bleed' : '';
       
     return (
-        <div className="group relative">
+        <div className="group relative" ref={iconRef} onMouseEnter={handleMouseEnter}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${effect.type === 'buff' ? 'bg-green-600' : 'bg-red-600'} border-2 border-black/50 ${pulseClass}`}>
                 {effect.name.slice(0, 1)}
                 <span className="absolute -top-1 -right-1 text-xs bg-gray-900 px-1 rounded-full">{effect.value || effect.duration}</span>
             </div>
-            <div className="absolute bottom-full mb-2 w-48 p-2 text-xs text-center text-white bg-gray-800 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+            <div className={`absolute bottom-full mb-2 w-48 p-2 text-xs text-center text-white bg-gray-800 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 ${tooltipClass}`}>
                 <p className="font-bold">{effect.name} ({effect.id === 'burn' || effect.id === 'bleed' || effect.id === 'poison' ? `${effect.value}层` : `${effect.duration}回合`})</p>
                 <p>{effect.description}</p>
             </div>
@@ -270,6 +292,27 @@ const ConstructSprite: React.FC<{
     const defeatedClass = isDefeated ? 'animate-dissolve' : '';
     const template = CONSTRUCTS[construct.templateId];
 
+    const tooltipRef = useRef<HTMLDivElement>(null);
+    const [tooltipClass, setTooltipClass] = useState('left-1/2 -translate-x-1/2');
+
+    const handleMouseEnter = () => {
+        if (tooltipRef.current) {
+            const rect = tooltipRef.current.getBoundingClientRect();
+            const tooltipWidth = 192; // w-48
+            const screenPadding = 8;
+            const screenWidth = window.innerWidth;
+            const iconCenter = rect.left + rect.width / 2;
+
+            if (iconCenter + tooltipWidth / 2 > screenWidth - screenPadding) {
+                setTooltipClass('right-0');
+            } else if (iconCenter - tooltipWidth / 2 < screenPadding) {
+                setTooltipClass('left-0');
+            } else {
+                setTooltipClass('left-1/2 -translate-x-1/2');
+            }
+        }
+    };
+
     return (
         <div
             className={`flex flex-col items-center transition-transform duration-200 relative ${defeatedClass}`}
@@ -278,9 +321,13 @@ const ConstructSprite: React.FC<{
              <div className="absolute -top-10 h-10 w-full">
                 {floatingTexts.map(ft => <FloatingText key={ft.id} text={ft.text} color={ft.color} />)}
             </div>
-            <div className="group absolute -top-6 right-0 flex items-center bg-gray-900/80 px-2 py-1 rounded-md text-xs z-10">
+            <div 
+                className="group relative absolute -top-6 right-0 flex items-center bg-gray-900/80 px-2 py-1 rounded-md text-xs z-10"
+                ref={tooltipRef}
+                onMouseEnter={handleMouseEnter}
+            >
                 <span className="font-bold text-orange-300">耐久: {construct.durability}</span>
-                 <div className="absolute bottom-full mb-2 w-48 p-2 text-xs text-center text-white bg-gray-800 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                 <div className={`absolute bottom-full mb-2 w-48 p-2 text-xs text-center text-white bg-gray-800 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 ${tooltipClass}`}>
                     <p className="font-bold">{construct.name}</p>
                     <p>{template.description}</p>
                 </div>
@@ -407,6 +454,7 @@ const CombatView: React.FC = () => {
     const prevTurnRef = useRef(combatState?.turn);
     const prevPhaseRef = useRef(combatState?.phase);
     const logEndRef = useRef<HTMLDivElement>(null);
+    const prevHandLengthRef = useRef(combatState?.hand.length);
 
     useEffect(() => {
         logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -429,6 +477,39 @@ const CombatView: React.FC = () => {
         prevTurnRef.current = combatState.turn;
         prevPhaseRef.current = combatState.phase;
     }, [combatState?.turn, combatState?.phase]);
+
+    // Mobile Drawer QoL: Auto open/close on turn change
+    useEffect(() => {
+        if (isMobile && combatState) {
+            const currentPhase = combatState.phase;
+            const previousPhase = prevPhaseRef.current;
+            if (currentPhase === 'player_turn' && previousPhase !== 'player_turn') {
+                setIsHandDrawerOpen(true);
+            } else if (currentPhase === 'enemy_turn' && previousPhase === 'player_turn') {
+                setIsHandDrawerOpen(false);
+            }
+            prevPhaseRef.current = currentPhase;
+        }
+    }, [isMobile, combatState?.phase]);
+
+    // Mobile Drawer QoL: Auto open/close after playing a card
+    useEffect(() => {
+        if (isMobile && combatState && combatState.phase === 'player_turn') {
+            const currentHandLength = combatState.hand.length;
+            const previousHandLength = prevHandLengthRef.current;
+            
+            if (previousHandLength !== undefined && currentHandLength < previousHandLength) {
+                if (currentHandLength > 0) {
+                    setIsHandDrawerOpen(true);
+                } else {
+                    setIsHandDrawerOpen(false);
+                }
+            }
+            prevHandLengthRef.current = currentHandLength;
+        } else if (combatState) {
+            prevHandLengthRef.current = combatState.hand.length;
+        }
+    }, [isMobile, combatState?.hand.length, combatState?.phase]);
 
     const allCards = { ...CARDS, ...customCards, ...ENEMY_CARDS };
     const playerStats = getEffectivePlayerStats(player, customEquipment);
@@ -509,7 +590,7 @@ const CombatView: React.FC = () => {
         dispatch({ type: 'PLAY_CARD', payload: { cardInstanceId, targetId } });
         setSelectedCardInstanceId(null);
         setMobileSelectedCardId(null);
-        setIsHandDrawerOpen(false); // Close drawer on card play
+        // Drawer is handled by useEffect now
     };
 
     const handleCardClick = (card: CombatCard) => {
@@ -521,6 +602,7 @@ const CombatView: React.FC = () => {
             if (needsTarget) {
                 setSelectedCardInstanceId(card.instanceId);
                 setMobileSelectedCardId(null);
+                setIsHandDrawerOpen(false); // Close drawer to allow target selection
             } else {
                 setSelectedCardInstanceId(null);
                 setMobileSelectedCardId(card.instanceId);
@@ -665,7 +747,6 @@ const CombatView: React.FC = () => {
              <button 
                 onClick={() => {
                     dispatch({ type: 'END_TURN' });
-                    setIsHandDrawerOpen(false);
                 }}
                 disabled={combatState.phase !== 'player_turn'}
                 className="px-8 py-3 bg-red-600 text-white font-bold rounded-md enabled:hover:bg-red-500 disabled:opacity-50 transition-all duration-300 transform enabled:hover:scale-105 active:scale-95 text-xl"
@@ -826,7 +907,7 @@ const CombatView: React.FC = () => {
                         </div>
                        {renderEndTurnButton()}
                     </div>
-                    <div className="flex-1 flex justify-end items-center space-x-4 h-8">
+                    <div className="flex-1 flex justify-end items-center flex-wrap gap-2">
                          {combatState.block > 0 && <div className="flex items-center gap-2 text-blue-400" title="格挡"><ShieldCheckIcon className="w-6 h-6" /><span className="font-mono font-bold">{combatState.block}</span></div>}
                          {player.charge > 0 && <div className="flex items-center gap-2 text-orange-400" title="充能"><span className="font-bold text-sm">⚡</span><span className="font-mono font-bold">{player.charge}</span></div>}
                          {player.statusEffects.map(effect => <StatusEffectIcon key={effect.id + effect.duration} effect={effect} parentAnimationClass={playerAnimationClass} />)}
@@ -877,7 +958,7 @@ const CombatView: React.FC = () => {
                         </div>
                         {renderEndTurnButton()}
                     </div>
-                    <div className="flex-1 flex justify-end items-center space-x-1 h-8">
+                    <div className="flex-1 flex justify-end items-center flex-wrap gap-1">
                          {player.statusEffects.map(effect => <StatusEffectIcon key={effect.id + effect.duration} effect={effect} parentAnimationClass={playerAnimationClass} />)}
                     </div>
                 </div>

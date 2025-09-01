@@ -170,7 +170,7 @@ export const WEAPON_AFFIX_POOL: Affix[] = [
 export const EQUIPMENT_AFFIX_POOL: Affix[] = [
     // --- Basic Stats ---
     { description: '最大HP +{value}', effect: { maxHp: 20 } },
-    { description: '最大CP +{value}', effect: { maxCp: 3 } },
+    { description: '最大CP +{value}', effect: { maxCp: 2 } },
     { description: '防御 +{value}', effect: { defense: 3 } },
     { description: '防御力 +{value}', effect: { blockPower: 5 } },
     // --- Resource Management ---

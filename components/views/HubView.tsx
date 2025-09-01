@@ -44,7 +44,7 @@ const Card: React.FC<{ card: CardType; stats?: Partial<PlayerStats>; }> = ({ car
                 <h3 className="font-bold text-sm md:text-base text-white">{card.name}</h3>
                 <p className="text-xs text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
             </div>
-            <p className="text-xs md:text-sm text-gray-200 flex-grow mt-2">{description}</p>
+            <p className="text-xs md:text-sm text-gray-200 flex-grow mt-2 overflow-y-auto">{description}</p>
             <p className="text-base md:text-lg font-bold text-cyan-400 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} HP` : `${card.cost} CP`}</p>
         </div>
     )
@@ -386,7 +386,7 @@ const HubView: React.FC = () => {
                                                 onTouchEnd={handleCardPressEnd}
                                                 onTouchCancel={handleCardPressEnd}
                                             >
-                                                <span className={`text-sm font-semibold ${getRarityColor(card.rarity)}`}>{card.name}</span>
+                                                <span className={`text-sm font-semibold ${getRarityColor(card.rarity)} select-none`}>{card.name}</span>
                                                 <button onClick={() => dispatch({ type: 'REMOVE_FROM_DECK', payload: { cardId, deckId: selectedDeckId, cardIndex: index } })} onTouchStart={e => e.stopPropagation()} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded transition-transform transform active:scale-95">移除</button>
                                             </div>
                                         );
@@ -433,7 +433,7 @@ const HubView: React.FC = () => {
                                                 onTouchEnd={handleCardPressEnd}
                                                 onTouchCancel={handleCardPressEnd}
                                             >
-                                                <span className={`text-sm font-semibold ${getRarityColor(card.rarity)}`}>{card.name} <span className="text-gray-400 font-mono text-xs">x{count}</span></span>
+                                                <span className={`text-sm font-semibold ${getRarityColor(card.rarity)} select-none`}>{card.name} <span className="text-gray-400 font-mono text-xs">x{count}</span></span>
                                                 <div className="flex items-center gap-2">
                                                     <button onClick={() => dispatch({ type: 'ADD_TO_DECK', payload: { cardId, deckId: selectedDeckId } })} onTouchStart={e => e.stopPropagation()} disabled={isDeckFull || !canAdd} className="text-xs bg-blue-800 enabled:hover:bg-blue-700 px-2 py-1 rounded disabled:opacity-50 transition-transform transform active:scale-95">添加</button>
                                                     <button onClick={() => dispatch({ type: 'DECOMPOSE_CARD', payload: { cardId } })} onTouchStart={e => e.stopPropagation()} disabled={!canDecompose} className="text-xs bg-gray-600 enabled:hover:bg-gray-500 px-2 py-1 rounded disabled:opacity-50 transition-transform transform active:scale-95">分解</button>

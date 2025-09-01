@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useReducer, useContext, ReactNode, useEffect } from 'react';
 import { GameState, GameAction, GameStatus, Enemy, Character, StatusEffect, EquipmentSlot, PlayerState, PlayerStats, Equipment, Card, CardRarity, AnimationType, AffixEffect, CardEffect, CombatCard, CombatState, Construct } from '../types';
 import { PLAYER_INITIAL_STATS, ENEMIES, CARDS, STATUS_EFFECTS, EQUIPMENT, ENEMY_CARDS, MISSIONS, MAX_COPIES_PER_RARITY, SYNC_COSTS, COMBAT_SETTINGS, CONSTRUCTS, AGGRO_SETTINGS, DECK_SIZE } from '../constants';
@@ -28,6 +29,7 @@ const initialState: GameState = {
   newlyAcquiredCardIds: [],
   newlyAcquiredEquipmentIds: [],
   isFirstCombatOfMission: true,
+  sedimentGainedOnDefeat: 0,
 };
 
 const loadState = (): GameState => {
@@ -78,6 +80,7 @@ const loadState = (): GameState => {
       newlyAcquiredEquipmentIds: loadedState.newlyAcquiredEquipmentIds || initialState.newlyAcquiredEquipmentIds,
       isFirstCombatOfMission: loadedState.isFirstCombatOfMission !== undefined ? loadedState.isFirstCombatOfMission : true,
       missionStartState: loadedState.missionStartState || undefined,
+      sedimentGainedOnDefeat: loadedState.sedimentGainedOnDefeat || 0,
     };
     
     if (typeof mergedState.status !== 'number' || !mergedState.player) {
@@ -138,6 +141,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         draft.isFirstCombatOfMission = true;
         draft.interimCombatState = undefined;
         draft.missionStartState = undefined; // Clear checkpoint on successful return
+        draft.sedimentGainedOnDefeat = 0;
     };
 
     const HAND_LIMIT = 9;
@@ -1107,25 +1111,19 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         if (effect.conditionalEffect) {
             const cond = effect.conditionalEffect.condition;
             let conditionMet = false;
-            if (cond.self?.minCharge !== undefined && draft.player.charge >= cond.self.minCharge) {
-                conditionMet = true;
+            
+            if (cond.self?.minCharge !== undefined) {
+                conditionMet = draft.player.charge >= cond.self.minCharge;
             }
-            if (cond.targetHasStatus === 'poison' && targetEnemy?.statusEffects.some(e => e.id === 'poison')) {
-                conditionMet = true;
-            } else if (cond.targetHasStatus === 'poison') {
-                conditionMet = false;
+            if (cond.targetHasStatus === 'poison') {
+                const hasPoison = targetEnemy?.statusEffects.some(e => e.id === 'poison' && (e.value || 0) > 0);
+                conditionMet = !!hasPoison;
             }
         
             const effectToApply = conditionMet ? effect.conditionalEffect.ifTrue : effect.conditionalEffect.ifFalse;
             if (effectToApply) {
-                if (effectToApply.gainCp) {
-                    draft.player.cp = Math.min(playerStats.maxCp, draft.player.cp + effectToApply.gainCp);
-                    addLog(`[${card.name}] 效果触发，恢复了 ${effectToApply.gainCp} 点CP。`, 'text-cyan-300');
-                }
-                if (effectToApply.drawCards) {
-                    addLog(`[${card.name}] 效果触发，抽了 ${effectToApply.drawCards} 张牌。`, 'text-yellow-400');
-                    drawCards(effectToApply.drawCards);
-                }
+                addLog(`[${card.name}] 的条件效果触发！`, 'text-yellow-400');
+                processCardEffect(effectToApply, sourceCardId, targetId, isDiscardEffect);
             }
         }
         
@@ -1242,6 +1240,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             player,
             customEquipment,
             customCards,
+            // Explicitly reset defeat reward display on checkpoint restart
+            sedimentGainedOnDefeat: 0,
           };
         }
         break;
@@ -1611,7 +1611,6 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             addLog(`[${card.name}] 溢流效果触发！`, 'text-cyan-200');
             processCardEffect(card.effect.overflowEffect, card.id, targetId);
         } else {
-// FIX: Replace delete statements with object destructuring for type safety and clarity.
             const {
                 discardCards,
                 generateCardChoice,
@@ -1957,6 +1956,68 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                     const actionCountText = actions.length > 1 ? `(${currentActionIndex + 1}/${actions.length})` : '';
                     addLog(`${enemy.name} 使用了 [${card.name}]。 ${actionCountText}`);
                     playSound('play_card_enemy');
+
+                    if (card.effect.removeAllBlock && draft.combatState.block > 0) {
+                        const blockRemoved = draft.combatState.block;
+                        draft.combatState.block = 0;
+                        addLog(`${enemy.name} 的 [${card.name}] 摧毁了你 ${blockRemoved} 点格挡！`, 'text-red-500');
+                    }
+
+                    if (card.effect.forcePlayerDiscard) {
+                        const { count } = card.effect.forcePlayerDiscard;
+                        if (draft.combatState.hand.length > 0) {
+                            const shuffledHand = shuffle([...draft.combatState.hand]);
+                            const actualCount = Math.min(count, shuffledHand.length);
+                            const cardsToDiscard = shuffledHand.slice(0, actualCount);
+                            const cardNames = cardsToDiscard.map(c => c.name).join(', ');
+                            const instanceIdsToDiscard = new Set(cardsToDiscard.map(c => c.instanceId));
+
+                            draft.combatState.hand = draft.combatState.hand.filter(handCard => !instanceIdsToDiscard.has(handCard.instanceId));
+                            cardsToDiscard.forEach(c => draft.combatState.discard.push(c));
+                            
+                            addLog(`${enemy.name} 的 [${card.name}] 迫使你弃掉了 ${cardsToDiscard.length} 张牌: [${cardNames}]！`, 'text-purple-400');
+                        }
+                    }
+
+                    if (card.effect.summonEnemy) {
+                        const { enemyId, count } = card.effect.summonEnemy;
+                        const enemyTemplate = ENEMIES[enemyId];
+                        if (enemyTemplate) {
+                            let summonedCount = 0;
+                            for (let i = 0; i < count; i++) {
+                                if (draft.combatState.enemies.filter(e => e.hp > 0).length >= 3) {
+                                    addLog(`${enemy.name} 试图召唤，但战场上已没有空间！`);
+                                    break;
+                                }
+                                const stage = draft.player.completedMissions.length + 1;
+                                const finalHp = Math.round(enemyTemplate.maxHp * (1 + (stage - 1) * 0.08));
+                                const finalAttack = Math.round(enemyTemplate.attack * (1 + (stage - 1) * 0.06));
+                    
+                                const newEnemy: Draft<Enemy> = {
+                                    ...enemyTemplate,
+                                    id: `${enemyId}_summon_${Date.now()}_${i}`,
+                                    hp: finalHp,
+                                    maxHp: finalHp,
+                                    attack: finalAttack,
+                                    deck: shuffle(enemyTemplate.deck),
+                                    statusEffects: [],
+                                    hand: [],
+                                    discard: [],
+                                    exhaust: [],
+                                    block: 0,
+                                    tideCounter: 0,
+                                    specialAction: enemyTemplate.specialAction,
+                                    specialActionTriggered: false,
+                                };
+                                draft.combatState.enemies.push(newEnemy);
+                                draft.combatState.enemyActions[newEnemy.id] = null;
+                                summonedCount++;
+                            }
+                            if (summonedCount > 0) {
+                                addLog(`${enemy.name} 召唤了 ${summonedCount} 个 [${enemyTemplate.name}]！`, 'text-green-400');
+                            }
+                        }
+                    }
 
                     if (card.effect.damageMultiplier) {
                         const isBound = enemy.statusEffects.some(e => e.id === 'bind');
@@ -2338,10 +2399,23 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         break;
       }
 
-      case 'COMBAT_DEFEAT':
+      case 'COMBAT_DEFEAT': {
+        let sedimentReward = 0;
+        if (draft.combatState) {
+            draft.combatState.enemies.forEach(enemy => {
+                if (enemy.hp <= 0) {
+                    // Grant 50% of the sediment for defeated enemies
+                    sedimentReward += Math.round(enemy.reward.dreamSediment * 0.5);
+                }
+            });
+        }
+
+        draft.player.dreamSediment += sedimentReward;
+        draft.sedimentGainedOnDefeat = sedimentReward;
         draft.status = GameStatus.GAME_OVER;
         draft.interimCombatState = undefined;
         break;
+      }
 
       case 'ADD_TO_DECK': {
         const { cardId, deckId } = action.payload;
@@ -2359,7 +2433,6 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       case 'REMOVE_FROM_DECK': {
         const { deckId, cardIndex } = action.payload;
         const deck = draft.player.decks[deckId];
-// FIX: Replaced 'index' with 'cardIndex' to correctly reference the payload property.
         if (deck && cardIndex > -1 && cardIndex < deck.length) {
             deck.splice(cardIndex, 1);
         }

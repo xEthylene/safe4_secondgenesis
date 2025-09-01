@@ -124,7 +124,7 @@ export const CARDS: Record<string, Card> = {
   'execution_protocol_recalibrate': {
     id: 'execution_protocol_recalibrate', name: '执行协议：再校准',
     description: '造成70%攻击力伤害。弃1张牌，抽2张牌。在你的下一个回合开始时，获得1点CP。',
-    cost: 1, rarity: CardRarity.COMMON, type: 'attack',
+    cost: 2, rarity: CardRarity.COMMON, type: 'attack',
     effect: {
         target: 'enemy',
         damageMultiplier: 0.7,
@@ -220,7 +220,7 @@ export const CARDS: Record<string, Card> = {
   },
   'overdrive': {
     id: 'overdrive', name: '超频运转',
-    description: '选择一项：\n• 消耗5点[充能]，抽3张牌。\n• 获得5点[充能]，抽1张牌。',
+    description: '选择一项：\n• 消耗5点[充能]，抽3张牌。\n• 获得3点[充能]，抽1张牌。',
     cost: 1, rarity: CardRarity.RARE, type: 'skill',
     effect: {
       target: 'self',
@@ -231,8 +231,8 @@ export const CARDS: Record<string, Card> = {
             effect: { target: 'self', chargeCost: 5, drawCards: 3 }
           },
           {
-            description: '获得5充能，抽1张牌',
-            effect: { target: 'self', gainCharge: 5, drawCards: 1 }
+            description: '获得3充能，抽1张牌',
+            effect: { target: 'self', gainCharge: 3, drawCards: 1 }
           }
         ]
       }
@@ -314,7 +314,7 @@ export const CARDS: Record<string, Card> = {
     effect: { target: 'enemy', damageMultiplier: 0.8, bonusEffect: { condition: 'hand_size_less_than_or_equal', value: 2, effect: { drawCards: 2 } } },
   },
   'pulse_bomb': {
-    id: 'pulse_bomb', name: 'EMP爆破', description: '对所有敌人造成100%攻击力的伤害。被弃置时抽一张牌，对所有敌人造成50%攻击力的伤害。', cost: 2, rarity: CardRarity.RARE, type: 'attack',
+    id: 'pulse_bomb', name: 'EMP爆破', description: '对所有敌人造成100%攻击力的伤害。被弃置时抽1张牌，对所有敌人造成50%攻击力的伤害。', cost: 2, rarity: CardRarity.RARE, type: 'attack',
     effect: { target: 'all_enemies', damageMultiplier: 1.0, onDiscard: { target: 'all_enemies', drawCards: 1, damageMultiplier: 0.5 } }, keywords: ['弃牌'],
   },
   'magitech_blade_arts_1': {
@@ -461,8 +461,8 @@ export const CARDS: Record<string, Card> = {
     effect: { damageMultiplier: 2.5, target: 'all_enemies' }
   },
   'emergency_protocol': {
-    id: 'emergency_protocol', name: '紧急规程', description: '获得200%防御力的格挡。抽3张牌。', cost: 4, rarity: CardRarity.EPIC, type: 'skill',
-    effect: { gainBlockMultiplier: 2.0, drawCards: 3, target: 'self' }
+    id: 'emergency_protocol', name: '紧急规程', description: '获得200%防御力的格挡。抽2张牌。', cost: 4, rarity: CardRarity.EPIC, type: 'skill',
+    effect: { gainBlockMultiplier: 2.0, drawCards: 2, target: 'self' }
   },
   'overload_annihilation_beam': {
     id: 'overload_annihilation_beam', name: '超限：湮灭序列', description: '消耗15点HP。对所有敌人造成220%攻击力的伤害。', cost: 0, rarity: CardRarity.EPIC, type: 'attack',
@@ -756,7 +756,7 @@ export const ENEMY_CARDS: Record<string, Card> = {
       cost: 0,
       rarity: CardRarity.RARE,
       type: 'skill',
-      effect: { statusEffect: 'empowered', statusEffectDuration: 2, target: 'self' },
+      effect: { statusEffect: 'empowered', statusEffectDuration: 1, target: 'self' },
   },
   'enemy_tear_flesh': {
     id: 'enemy_tear_flesh',
@@ -849,6 +849,90 @@ export const ENEMY_CARDS: Record<string, Card> = {
     description: '对目标造成200%攻击力伤害，并施加5层[烧伤]，对自己造成1000%攻击力伤害。',
     cost: 0, rarity: CardRarity.EPIC, type: 'attack',
     effect: { damageMultiplier: 2.0, statusEffect: 'burn', statusEffectValue: 5, selfDamageMultiplier: 10.0, target: 'enemy', exhausts: true }
+  },
+  'shield_shatter': {
+    id: 'shield_shatter',
+    name: '护盾粉碎',
+    description: '摧毁玩家所有格挡。',
+    cost: 0,
+    rarity: CardRarity.EPIC,
+    type: 'skill',
+    effect: { removeAllBlock: true, target: 'enemy' },
+    unobtainable: true,
+  },
+  'corrupting_slam': {
+    id: 'corrupting_slam',
+    name: '腐化猛击',
+    description: '造成180%攻击力的伤害，并将1张[恶臭]洗入玩家的弃牌堆。',
+    cost: 0,
+    rarity: CardRarity.EPIC,
+    type: 'attack',
+    effect: { damageMultiplier: 1.8, addCardToDiscard: ['stench'], target: 'enemy' },
+    unobtainable: true,
+  },
+  'entropic_field': {
+    id: 'entropic_field',
+    name: '熵能领域',
+    description: '获得15点格挡并对玩家施加2回合[弱化]。',
+    cost: 0,
+    rarity: CardRarity.RARE,
+    type: 'skill',
+    effect: { gainBlock: 15, statusEffect: 'weakened', statusEffectDuration: 3, target: 'enemy' },
+    unobtainable: true,
+  },
+  'mana_disruption': {
+    id: 'mana_disruption',
+    name: '魔导扰乱',
+    description: '迫使目标弃掉1张手牌。',
+    cost: 0,
+    rarity: CardRarity.COMMON,
+    type: 'skill',
+    effect: { target: 'enemy', forcePlayerDiscard: { count: 1 } },
+  },
+  'mind_shatter': {
+    id: 'mind_shatter',
+    name: '心智破碎',
+    description: '造成120%攻击力的伤害，并迫使目标弃掉2张手牌。',
+    cost: 0,
+    rarity: CardRarity.RARE,
+    type: 'attack',
+    effect: { target: 'enemy', damageMultiplier: 1.2, forcePlayerDiscard: { count: 2 } },
+  },
+  'crystal_prison': {
+    id: 'crystal_prison',
+    name: '晶石囚笼',
+    description: '造成150%攻击力的伤害，并迫使目标弃掉所有手牌。',
+    cost: 0,
+    rarity: CardRarity.EPIC,
+    type: 'attack',
+    effect: { target: 'enemy', damageMultiplier: 1.5, forcePlayerDiscard: { count: 99 } },
+  },
+  'algae_regeneration': {
+    id: 'algae_regeneration',
+    name: '藻类再生',
+    description: '恢复25点HP。',
+    cost: 0,
+    rarity: CardRarity.RARE,
+    type: 'skill',
+    effect: { target: 'self', heal: 25 },
+  },
+  'endless_tide': {
+    id: 'endless_tide',
+    name: '无尽绿潮',
+    description: '召唤1个[绿藻聚合物]。',
+    cost: 0,
+    rarity: CardRarity.EPIC,
+    type: 'skill',
+    effect: { target: 'self', summonEnemy: { enemyId: 'green_algae_polymer', count: 1 } },
+  },
+  'minor_regeneration': {
+    id: 'minor_regeneration',
+    name: '微弱再生',
+    description: '恢复10点HP。',
+    cost: 0,
+    rarity: CardRarity.COMMON,
+    type: 'skill',
+    effect: { target: 'self', heal: 10 },
   },
 };
 

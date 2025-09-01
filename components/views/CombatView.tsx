@@ -1,5 +1,6 @@
 
-import React, { useEffect, useState, useRef, CSSProperties } from 'react';
+
+import React, { useEffect, useState, useRef, useLayoutEffect, CSSProperties } from 'react';
 import { useGame } from '../../contexts/GameContext';
 import { Enemy, Card as CardType, StatusEffect, CardRarity, CombatLogEntry, PlayerStats, CombatCard, CardEffect, Construct } from '../../types';
 import { CARDS, ENEMY_CARDS, CONSTRUCTS } from '../../constants';
@@ -36,10 +37,35 @@ const Card: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; style?: C
     )
 };
 
-// New MobileCard component for compact display
 const MobileCard: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; className?: string, effectiveCost?: number; style?: CSSProperties; }> = ({ card, stats, className, effectiveCost, style }) => {
     const description = stats ? getDynamicCardDescription(card, stats) : card.description;
     const displayCost = card.costOverride ?? (effectiveCost !== undefined ? effectiveCost : card.cost);
+    const descriptionRef = useRef<HTMLParagraphElement>(null);
+
+    useLayoutEffect(() => {
+        const p = descriptionRef.current;
+        if (!p) return;
+
+        p.style.fontSize = ''; 
+        p.style.lineHeight = '';
+
+        const initialFontSize = 10;
+        const minFontSize = 7;
+        const initialLineHeight = 1.25;
+
+        let currentSize = initialFontSize;
+        p.style.fontSize = `${currentSize}px`;
+        p.style.lineHeight = String(initialLineHeight);
+        
+        for (let i = 0; i < 10; i++) { 
+            if (p.scrollHeight > p.clientHeight && currentSize > minFontSize) {
+                currentSize -= 0.5;
+                p.style.fontSize = `${currentSize}px`;
+            } else {
+                break;
+            }
+        }
+    }, [description]);
 
     return (
         <div
@@ -50,7 +76,12 @@ const MobileCard: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; cla
                 <h3 className="font-bold text-[11px] text-white truncate">{card.name}</h3>
                 <p className="text-[9px] text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
             </div>
-            <p className="text-[10px] text-gray-200 flex-grow mt-1 whitespace-pre-wrap overflow-hidden leading-tight">{description}</p>
+            <p 
+                ref={descriptionRef}
+                className="text-gray-200 flex-grow mt-1 whitespace-pre-wrap leading-tight pr-1 overflow-hidden"
+            >
+                {description}
+            </p>
             <p className="text-sm font-bold text-blue-300 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
         </div>
     )
@@ -492,27 +523,37 @@ const CombatView: React.FC = () => {
         }
     }, [isMobile, combatState?.phase]);
 
-    // Mobile Drawer QoL: Auto open/close after playing a card
+    // Mobile Drawer QoL: Auto open/close after playing an attack card
     useEffect(() => {
         if (isMobile && combatState && combatState.phase === 'player_turn') {
             const currentHandLength = combatState.hand.length;
             const previousHandLength = prevHandLengthRef.current;
             
             if (previousHandLength !== undefined && currentHandLength < previousHandLength) {
-                // A card was played. Add a slight delay to allow animations to feel more natural.
-                setTimeout(() => {
-                    if (currentHandLength > 0) {
-                        setIsHandDrawerOpen(true);
-                    } else {
-                        setIsHandDrawerOpen(false);
+                // A card was played. Find out which one.
+                const lastCardId = combatState.lastCardPlayedInstanceId;
+                if (lastCardId) {
+                    // Search all piles where the card could have gone
+                    const allPlayedPiles = [...combatState.discard, ...combatState.exhaust, ...combatState.hand];
+                    const lastPlayedCard = allPlayedPiles.find(c => c.instanceId === lastCardId);
+
+                    // Only open the drawer if an attack card was played.
+                    if (lastPlayedCard && lastPlayedCard.type === 'attack') {
+                        setTimeout(() => {
+                            if (currentHandLength > 0) {
+                                setIsHandDrawerOpen(true);
+                            } else {
+                                setIsHandDrawerOpen(false); // Close if hand is empty
+                            }
+                        }, 400); // Delay for animation
                     }
-                }, 400);
+                }
             }
             prevHandLengthRef.current = currentHandLength;
         } else if (combatState) {
             prevHandLengthRef.current = combatState.hand.length;
         }
-    }, [isMobile, combatState?.hand.length, combatState?.phase]);
+    }, [isMobile, combatState?.hand.length, combatState?.phase, combatState?.lastCardPlayedInstanceId]);
 
     const allCards = { ...CARDS, ...customCards, ...ENEMY_CARDS };
     const playerStats = getEffectivePlayerStats(player, customEquipment);
@@ -964,6 +1005,7 @@ const CombatView: React.FC = () => {
                         {renderEndTurnButton()}
                     </div>
                     <div className="flex-1 flex justify-end items-center flex-wrap gap-1">
+                         {player.charge > 0 && <div className="flex items-center gap-1 text-orange-400" title="充能"><span className="font-bold text-sm">⚡</span><span className="font-mono font-bold text-xs">{player.charge}</span></div>}
                          <div className="flex flex-wrap justify-end gap-1">
                             {player.statusEffects.map(effect => <StatusEffectIcon key={effect.id + effect.duration} effect={effect} parentAnimationClass={playerAnimationClass} />)}
                          </div>

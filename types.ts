@@ -371,6 +371,14 @@ export interface CardEffect {
     };
     overflowEffect?: CardEffect;
     deployConstruct?: string;
+    removeAllBlock?: boolean;
+    forcePlayerDiscard?: {
+        count: number;
+    };
+    summonEnemy?: {
+        enemyId: string;
+        count: number;
+    };
 }
 
 
@@ -562,6 +570,7 @@ export interface GameState {
   isFirstCombatOfMission: boolean;
   interimCombatState?: InterimCombatState;
   missionStartState?: GameState;
+  sedimentGainedOnDefeat?: number;
 }
 
 export type GameAction =

@@ -1,8 +1,5 @@
 
 
-
-
-
 import React, { useState } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { GameStatus, Card as CardType, CardRarity, PlayerStats, Equipment } from '../types';
@@ -46,7 +43,7 @@ const Card: React.FC<{ card: CardType; stats?: Partial<PlayerStats>; }> = ({ car
                 <h3 className="font-bold text-sm md:text-base text-white">{card.name}</h3>
                 <p className="text-xs text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
             </div>
-            <p className="text-xs md:text-sm text-gray-200 flex-grow mt-2">{description}</p>
+            <p className="text-xs md:text-sm text-gray-200 flex-grow mt-2 overflow-y-auto">{description}</p>
             <p className="text-base md:text-lg font-bold text-cyan-400 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} HP` : `${card.cost} CP`}</p>
         </div>
     )
@@ -210,6 +207,11 @@ const GameScreen: React.FC = () => {
           <div className="flex flex-col items-center justify-center h-full text-red-500">
             <h1 className="text-5xl font-bold">意识连接已断开</h1>
             <p className="text-xl mt-4">任务失败。</p>
+            {state.sedimentGainedOnDefeat && state.sedimentGainedOnDefeat > 0 && (
+                <p className="text-lg mt-4 text-purple-300 animate-fadeIn">
+                    你回收了 {state.sedimentGainedOnDefeat} 点梦境沉淀。
+                </p>
+            )}
             {state.missionStartState ? (
               <button
                   onClick={() => dispatch({ type: 'RESTART_FROM_CHECKPOINT' })}

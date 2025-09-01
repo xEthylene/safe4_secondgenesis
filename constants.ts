@@ -11,7 +11,7 @@ export * from './data/missions';
 export const SYNC_COSTS = {
   weapon: 50,
   equipment: 50,
-  card: 50,
+  card: 100,
 };
 
 export const AGGRO_SETTINGS = {

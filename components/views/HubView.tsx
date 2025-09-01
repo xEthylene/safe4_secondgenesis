@@ -280,6 +280,8 @@ const HubView: React.FC = () => {
                         <button 
                             onClick={() => dispatch({ type: 'UNEQUIP_ITEM', payload: { slot } })}
                             onTouchStart={e => e.stopPropagation()}
+                            onTouchEnd={handleItemPressEnd}
+                            onTouchCancel={handleItemPressEnd}
                             className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded transition-transform transform active:scale-95">卸下</button>
                     </div>
                 ) : (
@@ -480,8 +482,8 @@ const HubView: React.FC = () => {
                                                 >
                                                     <span className={`text-sm font-semibold ${getRarityColor(item.rarity)}`}>{item.name}</span>
                                                     <div className="flex items-center gap-2 mt-2 self-end">
-                                                        <button onClick={() => dispatch({ type: 'EQUIP_ITEM', payload: { itemId } })} onTouchStart={e => e.stopPropagation()} className="text-xs bg-green-800 hover:bg-green-700 px-2 py-1 rounded transition-transform transform active:scale-95">装备</button>
-                                                        <button onClick={() => dispatch({ type: 'DECOMPOSE_ITEM', payload: { itemId } })} onTouchStart={e => e.stopPropagation()} className="text-xs bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded transition-transform transform active:scale-95">分解</button>
+                                                        <button onClick={() => dispatch({ type: 'EQUIP_ITEM', payload: { itemId } })} onTouchStart={e => e.stopPropagation()} onTouchEnd={handleItemPressEnd} onTouchCancel={handleItemPressEnd} className="text-xs bg-green-800 hover:bg-green-700 px-2 py-1 rounded transition-transform transform active:scale-95">装备</button>
+                                                        <button onClick={() => dispatch({ type: 'DECOMPOSE_ITEM', payload: { itemId } })} onTouchStart={e => e.stopPropagation()} onTouchEnd={handleItemPressEnd} onTouchCancel={handleItemPressEnd} className="text-xs bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded transition-transform transform active:scale-95">分解</button>
                                                     </div>
                                                 </div>
                                                 );

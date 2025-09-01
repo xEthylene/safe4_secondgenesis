@@ -50,6 +50,23 @@ const Card: React.FC<{ card: CardType; stats?: Partial<PlayerStats>; }> = ({ car
     )
 };
 
+const EquipmentCard: React.FC<{ item: Equipment }> = ({ item }) => (
+    <div className={`w-full h-full border-4 ${getRarityColorStyle(item.rarity)} rounded-lg p-3 flex flex-col text-left shadow-lg`}>
+        <div>
+            <h3 className={`font-bold text-base ${getRarityColor(item.rarity)}`}>{item.name}</h3>
+            <p className="text-xs text-gray-400 capitalize">{item.rarity.toLowerCase()} {item.slot}</p>
+        </div>
+        <div className="my-2 border-t border-gray-600"/>
+        <p className="text-sm text-gray-300">{item.description}</p>
+        <div className="my-2 border-t border-gray-600"/>
+        <ul className="space-y-1 text-sm flex-grow">
+            {item.affixes.map((affix, i) => (
+                <li key={i} className="text-blue-300">✧ {affix.description}</li>
+            ))}
+        </ul>
+    </div>
+);
+
 const TABS = [
   { id: 'missions', name: '任务', icon: CubeTransparentIcon },
   { id: 'deck', name: '卡组编辑', icon: RectangleStackIcon },
@@ -110,6 +127,7 @@ const HubView: React.FC = () => {
     
     const [isMobile, setIsMobile] = useState(false);
     const [detailCardId, setDetailCardId] = useState<string | null>(null);
+    const [detailItemId, setDetailItemId] = useState<string | null>(null);
 
     // Deck Editor State
     const [selectedDeckId, setSelectedDeckId] = useState(player.activeDeckId || '1');
@@ -156,7 +174,7 @@ const HubView: React.FC = () => {
         });
     }, [searchTerm, selectedKeyword, cardCollectionCounts, allCardsSource]);
         
-    const handleCardClick = (cardId: string) => {
+    const handleCardPress = (cardId: string) => {
         if (isMobile) setDetailCardId(cardId);
     };
 
@@ -228,10 +246,14 @@ const HubView: React.FC = () => {
                         className="flex items-center justify-between"
                         onMouseEnter={(e) => handleItemMouseEnter(e, item.id)}
                         onMouseLeave={handleMouseLeave}
+                        onTouchStart={() => isMobile && setDetailItemId(item.id)}
+                        onTouchEnd={() => isMobile && setDetailItemId(null)}
+                        onTouchCancel={() => isMobile && setDetailItemId(null)}
                     >
                         <span className={`font-semibold ${getRarityColor(item.rarity)}`}>{item.name}</span>
                         <button 
                             onClick={() => dispatch({ type: 'UNEQUIP_ITEM', payload: { slot } })}
+                            onTouchStart={e => e.stopPropagation()}
                             className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded transition-transform transform active:scale-95">卸下</button>
                     </div>
                 ) : (
@@ -332,10 +354,12 @@ const HubView: React.FC = () => {
                                                 className="bg-gray-800 p-2 rounded flex items-center justify-between"
                                                 onMouseEnter={(e) => handleCardMouseEnter(e, cardId)}
                                                 onMouseLeave={handleMouseLeave}
-                                                onClick={() => handleCardClick(cardId)}
+                                                onTouchStart={() => handleCardPress(cardId)}
+                                                onTouchEnd={() => setDetailCardId(null)}
+                                                onTouchCancel={() => setDetailCardId(null)}
                                             >
                                                 <span className={`text-sm font-semibold ${getRarityColor(card.rarity)}`}>{card.name}</span>
-                                                <button onClick={() => dispatch({ type: 'REMOVE_FROM_DECK', payload: { cardId, deckId: selectedDeckId, cardIndex: index } })} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded transition-transform transform active:scale-95">移除</button>
+                                                <button onClick={() => dispatch({ type: 'REMOVE_FROM_DECK', payload: { cardId, deckId: selectedDeckId, cardIndex: index } })} onTouchStart={e => e.stopPropagation()} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded transition-transform transform active:scale-95">移除</button>
                                             </div>
                                         );
                                     })}
@@ -377,12 +401,14 @@ const HubView: React.FC = () => {
                                             <div key={cardId} className="bg-gray-800 p-2 rounded flex items-center justify-between"
                                                 onMouseEnter={(e) => handleCardMouseEnter(e, cardId)}
                                                 onMouseLeave={handleMouseLeave}
-                                                onClick={() => handleCardClick(cardId)}
+                                                onTouchStart={() => handleCardPress(cardId)}
+                                                onTouchEnd={() => setDetailCardId(null)}
+                                                onTouchCancel={() => setDetailCardId(null)}
                                             >
                                                 <span className={`text-sm font-semibold ${getRarityColor(card.rarity)}`}>{card.name} <span className="text-gray-400 font-mono text-xs">x{count}</span></span>
                                                 <div className="flex items-center gap-2">
-                                                    <button onClick={() => dispatch({ type: 'ADD_TO_DECK', payload: { cardId, deckId: selectedDeckId } })} disabled={isDeckFull || !canAdd} className="text-xs bg-blue-800 enabled:hover:bg-blue-700 px-2 py-1 rounded disabled:opacity-50 transition-transform transform active:scale-95">添加</button>
-                                                    <button onClick={() => dispatch({ type: 'DECOMPOSE_CARD', payload: { cardId } })} disabled={!canDecompose} className="text-xs bg-gray-600 enabled:hover:bg-gray-500 px-2 py-1 rounded disabled:opacity-50 transition-transform transform active:scale-95">分解</button>
+                                                    <button onClick={() => dispatch({ type: 'ADD_TO_DECK', payload: { cardId, deckId: selectedDeckId } })} onTouchStart={e => e.stopPropagation()} disabled={isDeckFull || !canAdd} className="text-xs bg-blue-800 enabled:hover:bg-blue-700 px-2 py-1 rounded disabled:opacity-50 transition-transform transform active:scale-95">添加</button>
+                                                    <button onClick={() => dispatch({ type: 'DECOMPOSE_CARD', payload: { cardId } })} onTouchStart={e => e.stopPropagation()} disabled={!canDecompose} className="text-xs bg-gray-600 enabled:hover:bg-gray-500 px-2 py-1 rounded disabled:opacity-50 transition-transform transform active:scale-95">分解</button>
                                                 </div>
                                             </div>
                                         );
@@ -419,11 +445,15 @@ const HubView: React.FC = () => {
                                                 const item = allEquipmentSource[itemId];
                                                 if (!item) return null;
                                                 return (
-                                                <div key={itemId} className={`bg-gray-800 p-2 rounded flex flex-col justify-between border-l-4 ${getRarityBorder(item.rarity)}`} onMouseEnter={(e) => handleItemMouseEnter(e, itemId)} onMouseLeave={handleMouseLeave}>
+                                                <div key={itemId} className={`bg-gray-800 p-2 rounded flex flex-col justify-between border-l-4 ${getRarityBorder(item.rarity)}`} onMouseEnter={(e) => handleItemMouseEnter(e, itemId)} onMouseLeave={handleMouseLeave}
+                                                    onTouchStart={() => isMobile && setDetailItemId(itemId)}
+                                                    onTouchEnd={() => isMobile && setDetailItemId(null)}
+                                                    onTouchCancel={() => isMobile && setDetailItemId(null)}
+                                                >
                                                     <span className={`text-sm font-semibold ${getRarityColor(item.rarity)}`}>{item.name}</span>
                                                     <div className="flex items-center gap-2 mt-2 self-end">
-                                                        <button onClick={() => dispatch({ type: 'EQUIP_ITEM', payload: { itemId } })} className="text-xs bg-green-800 hover:bg-green-700 px-2 py-1 rounded transition-transform transform active:scale-95">装备</button>
-                                                        <button onClick={() => dispatch({ type: 'DECOMPOSE_ITEM', payload: { itemId } })} className="text-xs bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded transition-transform transform active:scale-95">分解</button>
+                                                        <button onClick={() => dispatch({ type: 'EQUIP_ITEM', payload: { itemId } })} onTouchStart={e => e.stopPropagation()} className="text-xs bg-green-800 hover:bg-green-700 px-2 py-1 rounded transition-transform transform active:scale-95">装备</button>
+                                                        <button onClick={() => dispatch({ type: 'DECOMPOSE_ITEM', payload: { itemId } })} onTouchStart={e => e.stopPropagation()} className="text-xs bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded transition-transform transform active:scale-95">分解</button>
                                                     </div>
                                                 </div>
                                                 );
@@ -481,11 +511,21 @@ const HubView: React.FC = () => {
                 </div>
             )}
             {isMobile && detailCardId && (
-                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setDetailCardId(null)}>
-                     <div className="w-64 h-80" onClick={e => e.stopPropagation()}>
+                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn pointer-events-none">
+                     <div className="w-64 h-80">
                         {(() => {
                            const card = allCardsSource[detailCardId];
                            return card ? <Card card={card} stats={effectiveStats} /> : null;
+                        })()}
+                    </div>
+                </div>
+            )}
+            {isMobile && detailItemId && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn pointer-events-none">
+                    <div className="w-64 h-96">
+                        {(() => {
+                           const item = allEquipmentSource[detailItemId];
+                           return item ? <EquipmentCard item={item} /> : null;
                         })()}
                     </div>
                 </div>

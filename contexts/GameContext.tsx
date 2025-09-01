@@ -1611,7 +1611,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             addLog(`[${card.name}] 溢流效果触发！`, 'text-cyan-200');
             processCardEffect(card.effect.overflowEffect, card.id, targetId);
         } else {
-            // FIX: Replace delete statements with object destructuring for type safety and clarity.
+// FIX: Replace delete statements with object destructuring for type safety and clarity.
             const {
                 discardCards,
                 generateCardChoice,
@@ -1621,15 +1621,15 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     
             processCardEffect(immediateEffect as CardEffect, card.id, targetId);
 
-            if (card.effect.choiceEffect) {
+            if (choiceEffect) {
                 draft.combatState.phase = 'awaiting_effect_choice';
                 draft.combatState.effectChoiceAction = {
                     sourceCardInstanceId: playedCard.instanceId,
                     sourceTargetId: targetId,
-                    options: card.effect.choiceEffect.options,
+                    options: choiceEffect.options,
                 };
-            } else if (card.effect.discardCards) {
-                const discardInfo = card.effect.discardCards;
+            } else if (discardCards) {
+                const discardInfo = discardCards;
                 const availableCardsCount = draft.combatState.hand.length;
             
                 let numToDiscard = 0;
@@ -1651,10 +1651,10 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                 } else {
                     addLog(`没有足够的手牌可供弃置，[${card.name}] 的弃牌效果被跳过。`, 'text-gray-400');
                 }
-            } else if (card.effect.generateCardChoice) {
+            } else if (generateCardChoice) {
                 draft.combatState.phase = 'awaiting_card_choice';
                 draft.combatState.cardChoiceAction = {
-                    options: card.effect.generateCardChoice,
+                    options: generateCardChoice,
                 };
             }
         }
@@ -2359,7 +2359,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       case 'REMOVE_FROM_DECK': {
         const { deckId, cardIndex } = action.payload;
         const deck = draft.player.decks[deckId];
-        // FIX: Replaced 'index' with 'cardIndex' to correctly reference the payload property.
+// FIX: Replaced 'index' with 'cardIndex' to correctly reference the payload property.
         if (deck && cardIndex > -1 && cardIndex < deck.length) {
             deck.splice(cardIndex, 1);
         }

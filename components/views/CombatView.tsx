@@ -184,8 +184,9 @@ const EnemySprite: React.FC<{
     currentActionIndex: number;
     onActionIntentHover: (card: CardType, enemy: Enemy) => void;
     onActionIntentLeave: () => void;
-    onActionIntentClick: (card: CardType, enemy: Enemy) => void;
-}> = ({ enemy, isSelected, onSelect, isTargeting, actionCards, isAttacking, currentActionIndex, onActionIntentHover, onActionIntentLeave, onActionIntentClick }) => {
+    onActionIntentPress: (card: CardType, enemy: Enemy) => void;
+    onActionIntentRelease: () => void;
+}> = ({ enemy, isSelected, onSelect, isTargeting, actionCards, isAttacking, currentActionIndex, onActionIntentHover, onActionIntentLeave, onActionIntentPress, onActionIntentRelease }) => {
     const hpPercentage = (enemy.hp / enemy.maxHp) * 100;
     const { animationClass, floatingTexts } = useCombatEntityAnimation(enemy.id, enemy.hp, enemy.block);
     
@@ -210,7 +211,9 @@ const EnemySprite: React.FC<{
                         key={index}
                         onMouseEnter={() => onActionIntentHover(card, enemy)}
                         onMouseLeave={onActionIntentLeave}
-                        onClick={(e) => { e.stopPropagation(); onActionIntentClick(card, enemy); }}
+                        onTouchStart={() => onActionIntentPress(card, enemy)}
+                        onTouchEnd={onActionIntentRelease}
+                        onTouchCancel={onActionIntentRelease}
                     >
                         <ActionIntentIcon card={card} enemy={enemy} />
                     </div>
@@ -437,8 +440,12 @@ const CombatView: React.FC = () => {
         if (!isMobile) setHoveredCardInfo({ card, stats: { attack: enemy.attack, defense: enemy.defense } });
     };
     const handleActionIntentLeave = () => setHoveredCardInfo(null);
-    const handleActionIntentClick = (card: CardType, enemy: Enemy) => {
+    
+    const handleActionIntentPress = (card: CardType, enemy: Enemy) => {
         if (isMobile) setMobileDetailCard({ card, stats: { attack: enemy.attack, defense: enemy.defense } });
+    };
+    const handleActionIntentRelease = () => {
+        if (isMobile) setMobileDetailCard(null);
     };
 
     useEffect(() => {
@@ -701,8 +708,8 @@ const CombatView: React.FC = () => {
                 </div>
             )}
             {isMobile && mobileDetailCard && (
-                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-fadeIn" onClick={() => setMobileDetailCard(null)}>
-                     <div className="w-48 h-64" onClick={e => e.stopPropagation()}>
+                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-fadeIn pointer-events-none">
+                     <div className="w-48 h-64">
                          <Card card={mobileDetailCard.card as CombatCard} stats={mobileDetailCard.stats} />
                      </div>
                  </div>
@@ -747,7 +754,8 @@ const CombatView: React.FC = () => {
                                 currentActionIndex={combatState.activeActionIndex}
                                 onActionIntentHover={handleActionIntentHover}
                                 onActionIntentLeave={handleActionIntentLeave}
-                                onActionIntentClick={handleActionIntentClick}
+                                onActionIntentPress={handleActionIntentPress}
+                                onActionIntentRelease={handleActionIntentRelease}
                             />
                         ))}
                         {[...playerConstructs, ...enemyConstructs].map(construct => (

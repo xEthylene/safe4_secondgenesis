@@ -1,13 +1,11 @@
 
 
-
-
-
-
 export enum GameStatus {
   TITLE_SCREEN,
+  PROLOGUE_START,
   HUB,
   MISSION_BRIEFING,
+  MISSION_START,
   IN_MISSION_DIALOGUE,
   COMBAT_START,
   IN_MISSION_COMBAT,
@@ -123,12 +121,11 @@ export interface EquipmentTemplate {
     name: string;
     corePassiveDescription: string;
     corePassive: AffixEffect;
-    baseStat: 'maxHp' | 'maxCp';
 }
 
 
 export interface AffixEffect {
-  // Simple Stats
+  // Simple Stats (Flat)
   maxHp?: number;
   maxCp?: number;
   attack?: number;
@@ -136,6 +133,13 @@ export interface AffixEffect {
   blockPower?: number;
   cpRecovery?: number;
   initialDraw?: number;
+
+  // Simple Stats (Percentage)
+  maxHpPercent?: number;
+  maxCpPercent?: number;
+  attackPercent?: number;
+  defensePercent?: number;
+  blockPowerPercent?: number;
 
   // Weapon Template Core Passives
   onKillHeal?: number;
@@ -457,6 +461,7 @@ export interface DialogueEvent {
 export interface CombatEvent {
   type: 'combat';
   enemies: string[]; // Array of enemy IDs
+  maxEnemiesOnField?: number;
 }
 
 export interface SupplyStopEvent {
@@ -503,7 +508,7 @@ export interface CombatLogEntry {
     color?: string;
 }
 
-export type AnimationType = 'hit_hp' | 'hit_block' | 'burn' | 'bleed';
+export type AnimationType = 'hit_hp' | 'hit_block' | 'burn' | 'bleed' | 'poison';
 
 export interface CombatState {
     phase: 'player_turn' | 'enemy_turn' | 'victory' | 'defeat' | 'awaiting_discard' | 'awaiting_return_to_deck' | 'awaiting_card_choice' | 'awaiting_effect_choice';
@@ -554,6 +559,9 @@ export interface CombatState {
     damageTakenThisTurn: number;
     lastCardPlayedInstanceId?: string;
     bleedDamageDealtThisTurn?: boolean;
+    // New Reinforcement System
+    enemyReinforcements: string[];
+    maxEnemiesOnField?: number;
 }
 
 interface InterimCombatState {
@@ -582,11 +590,14 @@ export interface GameState {
     enemies: number;
     waves: number;
   };
+  currentMissionIsReplay?: boolean;
 }
 
 export type GameAction =
   | { type: 'START_GAME' }
-  | { type: 'SELECT_MISSION'; payload: string }
+  | { type: 'FINISH_PROLOGUE_START' }
+  | { type: 'SELECT_MISSION'; payload: { missionId: string; isReplay?: boolean } }
+  | { type: 'START_MISSION' }
   | { type: 'ADVANCE_STORY' }
   | { type: 'SKIP_DIALOGUE' }
   | { type: 'RETURN_TO_HUB' }

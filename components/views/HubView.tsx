@@ -1,9 +1,11 @@
+
+
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { useGame } from '../../contexts/GameContext';
 import { EQUIPMENT, CARDS, MISSIONS, SYNC_COSTS, DECK_SIZE, CARDS as ALL_CARDS_SOURCE, KEYWORD_DEFINITIONS } from '../../constants';
 import { Mission, EquipmentSlot, Card as CardType, CardRarity, Equipment, PlayerStats, CardEffect } from '../../types';
 import { getEffectivePlayerStats } from '../../utils/playerUtils';
-import { Cog6ToothIcon, CubeTransparentIcon, ShieldCheckIcon, SparklesIcon, RectangleStackIcon, ArrowPathIcon, ExclamationTriangleIcon, BookOpenIcon, ComputerDesktopIcon, AdjustmentsHorizontalIcon, XMarkIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, CubeTransparentIcon, ShieldCheckIcon, SparklesIcon, RectangleStackIcon, ArrowPathIcon, ExclamationTriangleIcon, BookOpenIcon, ComputerDesktopIcon, AdjustmentsHorizontalIcon, XMarkIcon, FunnelIcon, ArrowPathRoundedSquareIcon } from '@heroicons/react/24/outline';
 import { getDynamicCardDescription } from '../../utils/cardUtils';
 import RulebookView from './RulebookView';
 
@@ -120,9 +122,20 @@ const getRarityColorStyle = (rarity: CardRarity, bg: boolean = true) => {
 
 const Card: React.FC<{ card: CardType; stats?: Partial<PlayerStats>; }> = ({ card, stats }) => {
     const description = stats ? getDynamicCardDescription(card, stats) : card.description;
+    const isEpic = card.rarity === CardRarity.EPIC;
+    const isRare = card.rarity === CardRarity.RARE;
+
+    const holographicClass = isEpic ? 'holographic' : isRare ? 'rare-foil' : '';
+    const holographicStyle = isEpic 
+        ? { '--holo1': '#efb2fb', '--holo2': '#acc6f8' }
+        : isRare
+        ? { '--rare1': '#60a5fa', '--rare2': '#3b82f6' }
+        : {};
+
     return (
         <div
-            className={`w-full h-full border-4 ${getRarityColorStyle(card.rarity)} rounded-lg p-3 flex flex-col justify-between text-left shadow-lg`}
+            className={`w-full h-full border-4 ${getRarityColorStyle(card.rarity)} rounded-lg p-3 flex flex-col justify-between text-left shadow-lg ${holographicClass}`}
+            style={holographicStyle as React.CSSProperties}
         >
             <div>
                 <h3 className="font-bold text-sm md:text-base text-white">{card.name}</h3>
@@ -134,25 +147,44 @@ const Card: React.FC<{ card: CardType; stats?: Partial<PlayerStats>; }> = ({ car
     )
 };
 
-const EquipmentCard: React.FC<{ item: Equipment }> = ({ item }) => (
-    <div className={`w-full h-full border-4 ${getRarityColorStyle(item.rarity)} rounded-lg p-3 flex flex-col text-left shadow-lg`}>
-        <div>
-            <h3 className={`font-bold text-base ${getRarityColor(item.rarity)}`}>{item.name}</h3>
-            <p className="text-xs text-gray-400 capitalize">{item.rarity.toLowerCase()} {item.slot}</p>
+// NOTE: This is a local definition for the mobile detail view.
+// The primary EquipmentCard is defined in GameScreen.tsx for the reveal overlay.
+const EquipmentCard: React.FC<{ item: Equipment }> = ({ item }) => {
+    const baseStats = [];
+    if (item.baseEffects.attack) baseStats.push({ label: '攻击', value: item.baseEffects.attack, color: 'text-yellow-400' });
+    if (item.baseEffects.maxHp) baseStats.push({ label: '最大HP', value: item.baseEffects.maxHp, color: 'text-red-400' });
+    if (item.baseEffects.blockPower) baseStats.push({ label: '防御力', value: item.baseEffects.blockPower, color: 'text-gray-300' });
+    
+    return (
+        <div className={`w-full h-full border-4 ${getRarityColorStyle(item.rarity)} rounded-lg p-3 flex flex-col text-left shadow-lg`}>
+            <div>
+                <h3 className={`font-bold text-base ${getRarityColor(item.rarity)}`}>{item.name}</h3>
+                <p className="text-xs text-gray-400 capitalize">{item.rarity.toLowerCase()} {item.slot}</p>
+            </div>
+            <div className="my-2 border-t border-gray-600"/>
+            <p className="text-sm text-gray-300">{item.description}</p>
+            {baseStats.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-600">
+                    {baseStats.map(stat => (
+                        <p key={stat.label} className="text-sm">
+                            {stat.label}: <span className={`font-bold ${stat.color}`}>{stat.value}</span>
+                        </p>
+                    ))}
+                </div>
+            )}
+            <div className="my-2 border-t border-gray-600"/>
+            <ul className="space-y-1 text-sm flex-grow">
+                {item.affixes.map((affix, i) => (
+                    <li key={i} className="text-blue-300">✧ {affix.description}</li>
+                ))}
+            </ul>
         </div>
-        <div className="my-2 border-t border-gray-600"/>
-        <p className="text-sm text-gray-300">{item.description}</p>
-        <div className="my-2 border-t border-gray-600"/>
-        <ul className="space-y-1 text-sm flex-grow">
-            {item.affixes.map((affix, i) => (
-                <li key={i} className="text-blue-300">✧ {affix.description}</li>
-            ))}
-        </ul>
-    </div>
-);
+    );
+};
 
 const TABS = [
   { id: 'missions', name: '任务', icon: CubeTransparentIcon },
+  { id: 'replay', name: '回战', icon: ArrowPathRoundedSquareIcon },
   { id: 'deck', name: '卡组编辑', icon: RectangleStackIcon },
   { id: 'loadout', name: '代行者整备', icon: Cog6ToothIcon },
   { id: 'console', name: '主控台', icon: ComputerDesktopIcon },
@@ -235,11 +267,11 @@ const HubView: React.FC = () => {
     const isDeckValid = player.decks[player.activeDeckId]?.length === DECK_SIZE;
 
     // Memoized calculations for deck editor
-    const allKeywords = useMemo(() => {
-        const keywords = new Set<string>();
-        Object.values(ALL_CARDS_SOURCE).forEach(card => card.keywords?.forEach(kw => keywords.add(kw)));
-        return Array.from(keywords).sort();
-    }, []);
+    const allKeywords = useMemo(() => [
+        '消耗', '无限', '递增', '充能', '烧伤', '流血', '中毒', '弃牌',
+        '衍生', '反击', '过载', '贯穿', '连锁', '能力', '终幕',
+        '抉择', '状态', '构装体'
+    ].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN')), []);
 
     const cardCollectionCounts = useMemo(() => player.cardCollection.reduce((acc, cardId) => {
         acc[cardId] = (acc[cardId] || 0) + 1;
@@ -281,6 +313,25 @@ const HubView: React.FC = () => {
         setActiveTooltip(null);
     };
 
+    const renderBaseStats = (baseEffects: Equipment['baseEffects']) => {
+        const stats = [];
+        if (baseEffects.attack) stats.push({ label: '攻击', value: baseEffects.attack, color: 'text-yellow-400' });
+        if (baseEffects.maxHp) stats.push({ label: '最大HP', value: baseEffects.maxHp, color: 'text-red-400' });
+        if (baseEffects.blockPower) stats.push({ label: '防御力', value: baseEffects.blockPower, color: 'text-gray-300' });
+        
+        if (stats.length === 0) return null;
+
+        return (
+            <div className="mt-2 pt-2 border-t border-gray-600">
+                {stats.map(stat => (
+                    <p key={stat.label} className="text-sm">
+                        {stat.label}: <span className={`font-bold ${stat.color}`}>{stat.value}</span>
+                    </p>
+                ))}
+            </div>
+        );
+    };
+
     const handleItemMouseEnter = (e: React.MouseEvent<HTMLDivElement>, itemId: string) => {
         if (isMobile) return;
         if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
@@ -291,6 +342,7 @@ const HubView: React.FC = () => {
             <>
                 <p className={`font-bold ${getRarityColor(item.rarity)}`}>{item.name}</p>
                 <p className="my-1 text-gray-300">{item.description}</p>
+                {renderBaseStats(item.baseEffects)}
                 <div className="my-2 border-t border-gray-600"/>
                 <ul className="space-y-1">
                     {item.affixes.map((affix, i) => <li key={i} className="text-blue-300">✧ {affix.description}</li>)}
@@ -368,20 +420,27 @@ const HubView: React.FC = () => {
         clearTimeout(longPressTimer.current);
     };
 
-    const MissionCard = ({ mission }: { mission: Mission }) => (
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-cyan-500 hover:bg-gray-800 transition-all flex flex-col">
-            <h3 className={`text-xl font-bold ${mission.type === 'main' ? 'text-cyan-400' : 'text-purple-400'}`}>{mission.title}</h3>
-            <p className="text-sm text-gray-400 mt-1">签发单位: {mission.issuer}</p>
-            <p className="text-sm text-gray-500 mt-2 h-12 overflow-hidden flex-grow">{mission.description[0]}</p>
-            <button
-                onClick={() => dispatch({ type: 'SELECT_MISSION', payload: mission.id })}
-                disabled={!isDeckValid}
-                className="mt-4 w-full px-4 py-2 bg-gray-700 text-white font-semibold rounded-md enabled:hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors transform active:scale-95"
-            >
-                查阅简报
-            </button>
-        </div>
-    );
+    const MissionCard: React.FC<{ mission: Mission, isReplay?: boolean }> = ({ mission, isReplay = false }) => {
+        const rewardAmount = isReplay ? Math.round(mission.rewards.dreamSediment * 0.5) : mission.rewards.dreamSediment;
+        return (
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-cyan-500 hover:bg-gray-800 transition-all flex flex-col">
+                <h3 className={`text-xl font-bold ${mission.type === 'main' ? 'text-cyan-400' : 'text-purple-400'}`}>{mission.title}</h3>
+                <p className="text-sm text-gray-400 mt-1">签发单位: {mission.issuer}</p>
+                <p className="text-sm text-gray-500 mt-2 h-12 overflow-hidden flex-grow">{mission.description[0]}</p>
+                 <div className="flex-grow" />
+                <p className="text-purple-300 mt-2">
+                    +{rewardAmount} 梦境沉淀 {isReplay && <span className="text-sm text-gray-400">(回战奖励)</span>}
+                </p>
+                <button
+                    onClick={() => dispatch({ type: 'SELECT_MISSION', payload: { missionId: mission.id, isReplay } })}
+                    disabled={!isDeckValid}
+                    className="mt-4 w-full px-4 py-2 bg-gray-700 text-white font-semibold rounded-md enabled:hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors transform active:scale-95"
+                >
+                    查阅简报
+                </button>
+            </div>
+        );
+    };
     
     const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot, name: string }> = ({ slot, name }) => {
         const itemId = player.equipment[slot];
@@ -466,6 +525,32 @@ const HubView: React.FC = () => {
                         )}
                     </div>
                 );
+            case 'replay': {
+                 const completedMissions = Object.values(MISSIONS)
+                    .filter(mission => state.player.completedMissions.includes(mission.id) && mission.id !== 'prologue')
+                    .sort((a, b) => (a.chapter || 0) - (b.chapter || 0));
+
+                 return (
+                    <div className="animate-fadeIn">
+                        <h2 className="text-2xl font-semibold mb-4 text-gray-300">已完成的任务</h2>
+                         {!isDeckValid && (
+                            <div className="mb-4 p-4 bg-yellow-900/50 border border-yellow-500 rounded-lg text-yellow-200 flex items-center justify-center gap-2">
+                                <ExclamationTriangleIcon className="w-6 h-6" />
+                                <p className="font-bold">激活的卡组必须正好为 {DECK_SIZE} 张才能开始任务。</p>
+                            </div>
+                        )}
+                        {completedMissions.length > 0 ? (
+                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {completedMissions.map(m => <MissionCard key={m.id} mission={m} isReplay={true} />)}
+                            </div>
+                        ) : (
+                            <div className="text-center text-gray-500 py-10">
+                                <p>尚未完成任何可重玩任务。</p>
+                            </div>
+                        )}
+                    </div>
+                 );
+            }
 
             case 'deck':
                  return (

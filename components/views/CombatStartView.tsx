@@ -24,7 +24,9 @@ const CombatStartView: React.FC = () => {
     if (!combatStartInfo) return null;
 
     return (
-        <div className="relative flex flex-col h-full items-center justify-center p-4 md:p-8 eva-hex-grid">
+        <div className="relative flex flex-col h-full items-center justify-center p-4 md:p-8 eva-hex-grid overflow-hidden">
+            <div className="eva-caution-bar" style={{ top: '5%' }}></div>
+            <div className="eva-caution-bar" style={{ bottom: '5%' }}></div>
             <div className="absolute inset-0 border-8 border-red-500 animate-[eva-red-border-pulse_1.5s_ease-in-out_infinite]"></div>
             <div className="text-center text-white z-10">
                 {step >= 1 && (
@@ -34,7 +36,7 @@ const CombatStartView: React.FC = () => {
                         style={{ animationDuration: '0.5s' }}
                     >
                         <h1 className="text-5xl md:text-7xl font-extrabold text-red-400 uppercase tracking-widest animate-[eva-glitch-text_2s_linear_infinite]" style={{ textShadow: '0 0 10px #ef4444, 0 0 20px #ef4444, -2px 2px 2px rgba(0,0,0,0.5)' }}>
-                            EMERGENCY3
+                            EMERGENCY
                         </h1>
                     </div>
                 )}

@@ -2,7 +2,7 @@
 
 import React, { createContext, useReducer, useContext, ReactNode, useEffect } from 'react';
 import { GameState, GameAction, GameStatus, Enemy, Character, StatusEffect, EquipmentSlot, PlayerState, PlayerStats, Equipment, Card, CardRarity, AnimationType, AffixEffect, CardEffect, CombatCard, CombatState, Construct, CombatEvent } from '../types';
-import { PLAYER_INITIAL_STATS, ENEMIES, CARDS, STATUS_EFFECTS, EQUIPMENT, ENEMY_CARDS, MISSIONS, MAX_COPIES_PER_RARITY, SYNC_COSTS, COMBAT_SETTINGS, CONSTRUCTS, AGGRO_SETTINGS, DECK_SIZE } from '../constants';
+import { PLAYER_INITIAL_STATS, ENEMIES, CARDS, STATUS_EFFECTS, EQUIPMENT, ENEMY_CARDS, MISSIONS, MAX_COPIES_PER_RARITY, SYNC_COSTS, COMBAT_SETTINGS, CONSTRUCTS, AGGRO_SETTINGS, DECK_SIZE, EXPECTED_PLAYER_STATS_BY_CHAPTER } from '../constants';
 import { produce, Draft } from 'immer';
 import { getEffectivePlayerStats } from '../utils/playerUtils';
 import { generateRandomEquipment } from '../utils/equipmentGenerator';
@@ -31,6 +31,7 @@ const initialState: GameState = {
   isFirstCombatOfMission: true,
   sedimentGainedOnDefeat: 0,
   combatStartInfo: undefined,
+  currentMissionIsReplay: false,
 };
 
 const loadState = (): GameState => {
@@ -83,6 +84,7 @@ const loadState = (): GameState => {
       missionStartState: loadedState.missionStartState || undefined,
       sedimentGainedOnDefeat: loadedState.sedimentGainedOnDefeat || 0,
       combatStartInfo: loadedState.combatStartInfo || undefined,
+      currentMissionIsReplay: loadedState.currentMissionIsReplay || false,
     };
     
     if (typeof mergedState.status !== 'number' || !mergedState.player) {
@@ -118,6 +120,22 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     const getStage = (): number => {
         return draft.player.completedMissions.length + 1;
     };
+    
+    const getCurrentChapter = (): number => {
+        const completedMissions = draft.player.completedMissions;
+        const availableMissions = Object.values(MISSIONS).filter(mission => {
+            if (completedMissions.includes(mission.id) || mission.id === 'prologue') return false;
+            if (!mission.requires || mission.requires.length === 0) return true; // prologue is done
+            return mission.requires.every(reqId => completedMissions.includes(reqId));
+        });
+
+        if (availableMissions.length === 0) {
+             const lastCompleted = completedMissions.length > 0 ? MISSIONS[completedMissions[completedMissions.length - 1]] : null;
+             return lastCompleted?.chapter || 1; // Default to last known chapter or 1
+        }
+        const minChapter = Math.min(...availableMissions.map(m => m.chapter || 99));
+        return minChapter === 99 ? 1 : minChapter;
+    };
 
     const getPlayerStats = () => getEffectivePlayerStats(draft.player, draft.customEquipment);
 
@@ -145,6 +163,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         draft.interimCombatState = undefined;
         draft.missionStartState = undefined; // Clear checkpoint on successful return
         draft.sedimentGainedOnDefeat = 0;
+        draft.currentMissionIsReplay = false;
     };
 
     const HAND_LIMIT = 9;
@@ -152,6 +171,53 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     const addLog = (text: string, color?: string) => {
         if (draft.combatState) {
             draft.combatState.log.push({ id: logIdCounter++, text, color });
+        }
+    };
+    
+    const handleReinforcements = () => {
+        if (!draft.combatState || !draft.combatState.maxEnemiesOnField || draft.combatState.enemyReinforcements.length === 0) {
+            return;
+        }
+    
+        const aliveEnemiesCount = draft.combatState.enemies.filter(e => e.hp > 0).length;
+        const reinforcementsNeeded = draft.combatState.maxEnemiesOnField - aliveEnemiesCount;
+    
+        if (reinforcementsNeeded > 0) {
+            const chapter = getCurrentChapter();
+            const expectedStats = EXPECTED_PLAYER_STATS_BY_CHAPTER[chapter] || EXPECTED_PLAYER_STATS_BY_CHAPTER[1];
+            
+            const reinforcementsToSpawn = draft.combatState.enemyReinforcements.splice(0, reinforcementsNeeded);
+            
+            if (reinforcementsToSpawn.length > 0) {
+                addLog('增援抵达！', 'text-yellow-400');
+                playSound('combat_start'); // Or a different sound
+            }
+    
+            reinforcementsToSpawn.forEach(enemyId => {
+                const enemyData = ENEMIES[enemyId];
+                const finalHp = enemyData.maxHp < expectedStats.maxHp ? Math.round((enemyData.maxHp + expectedStats.maxHp) / 2) : enemyData.maxHp;
+                const finalAttack = enemyData.attack < expectedStats.attack ? Math.round((enemyData.attack + expectedStats.attack) / 2) : enemyData.attack;
+                const finalDefense = enemyData.defense < expectedStats.defense ? Math.round((enemyData.defense + expectedStats.defense) / 2) : enemyData.defense;
+    
+                const newEnemy: Draft<Enemy> = {
+                    ...enemyData,
+                    id: `${enemyId}_reinforcement_${Date.now()}_${Math.random()}`,
+                    hp: finalHp,
+                    maxHp: finalHp,
+                    attack: finalAttack,
+                    defense: finalDefense,
+                    deck: shuffle(enemyData.deck),
+                    statusEffects: [],
+                    hand: [],
+                    discard: [],
+                    exhaust: [],
+                    block: 0,
+                    tideCounter: 0,
+                    specialAction: enemyData.specialAction,
+                    specialActionTriggered: false,
+                };
+                draft.combatState!.enemies.push(newEnemy);
+            });
         }
     };
 
@@ -201,10 +267,10 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         checkForHandOverflow();
     };
 
-    const dealBleedDamageAndTriggerEffects = (entity: Draft<PlayerState | Enemy>, entityId: string, playerStats: PlayerStats) => {
-        if (!draft.combatState) return;
+    const dealBleedDamageAndTriggerEffects = (entity: Draft<PlayerState | Enemy>, entityId: string, playerStats: PlayerStats): boolean => {
+        if (!draft.combatState) return false;
         const bleedEffect = entity.statusEffects.find(e => e.id === 'bleed');
-        if (!bleedEffect || !bleedEffect.value) return;
+        if (!bleedEffect || !bleedEffect.value) return false;
 
         let bleedDamage = Math.ceil(entity.maxHp * (bleedEffect.value / 100));
         
@@ -220,7 +286,11 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             const entityName = entityId === 'player' ? '你' : (entity as Enemy).name;
             addLog(`${entityName} 因[流血]受到了 ${bleedDamage} 点伤害！`, 'text-red-400');
             draft.combatState.bleedDamageDealtThisTurn = true;
+            if (entityId !== 'player' && entity.hp <= 0) {
+                return true; // Enemy died
+            }
         }
+        return false;
     };
     
     const applyStatusEffectsStartOfTurn = (entity: PlayerState | Enemy, isPlayer: boolean) => {
@@ -240,6 +310,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             if (effect.id === 'poison' && effect.value) {
                 const damage = Math.round(entity.maxHp * 0.1);
                 entity.hp -= damage;
+                playSound('status_damage');
+                triggerAnimation(entityId, 'poison');
                 addLog(`${isPlayer ? '你' : (entity as Enemy).name} 因[中毒]受到了 ${damage} 点伤害。`, 'text-purple-400');
                 const newStacks = effect.value - 1;
                 effect.value = newStacks;
@@ -552,10 +624,15 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                     }
                 }
 
-                const baseEnemyId = enemy.id.substring(0, enemy.id.lastIndexOf('_'));
+                // FIX: The original logic for getting baseEnemyId was brittle and crashed on reinforcement IDs.
+                // This new logic correctly parses both standard IDs and reinforcement IDs.
+                const baseEnemyId = enemy.id.includes('_reinforcement_')
+                    ? enemy.id.split('_reinforcement_')[0]
+                    : enemy.id.substring(0, enemy.id.lastIndexOf('_'));
+
                 const enemyTemplate = ENEMIES[baseEnemyId];
                 if (!enemyTemplate) {
-                    console.error(`Could not find enemy template for id: ${baseEnemyId}`);
+                    console.error(`Could not find enemy template for id: ${baseEnemyId} (from instance id: ${enemy.id})`);
                     return;
                 }
                 const isTideTurn = (enemy.tideCounter + 1) % 3 === 0;
@@ -678,9 +755,10 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
              }
         }
         
-        const isEmpowered = draft.player.statusEffects.some(e => e.id === 'empowered');
-        if (isEmpowered && card.type === 'attack') {
-            baseDamage *= 2.5;
+        const empoweredEffect = draft.player.statusEffects.find(e => e.id === 'empowered');
+        if (empoweredEffect && card.type === 'attack') {
+            const bonus = empoweredEffect.value || 0.5; // Default to 50% bonus if value is not set
+            baseDamage *= (1 + bonus);
             addLog(`强化效果发动！`, 'text-yellow-500');
             draft.player.statusEffects = draft.player.statusEffects.filter(e => e.id !== 'empowered');
         }
@@ -689,7 +767,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             const targets = effect.target === 'all_enemies' 
                 ? draft.combatState.enemies.filter(e => e.hp > 0) 
                 : (targetEnemy ? [targetEnemy] : []);
-
+            
             for (const enemy of targets) {
                 let finalDamage = baseDamage;
 
@@ -806,6 +884,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                     checkForOnKillEffects(enemy);
                 }
             }
+
+            handleReinforcements();
         }
         
         let blockGained = 0;
@@ -899,7 +979,6 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                 const stacksToConsume = stacksToRemoveRatio 
                     ? Math.floor(stacks * stacksToRemoveRatio)
                     : (stacksToRemove ? Math.min(stacks, stacksToRemove) : Math.min(stacks, maxConsumeStacks || stacks));
-
                 
                 if (damagePerStackMultiplier) {
                     let baseDmg = playerStats.attack * damagePerStackMultiplier;
@@ -915,6 +994,9 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                         tgt.hp -= damage;
                         playSound('status_damage');
                         triggerAnimation(tgt.id, effectId === 'burn' ? 'burn' : 'bleed');
+                        if (tgt.hp <= 0) {
+                            checkForOnKillEffects(tgt);
+                        }
                     }
                     if (consumeTarget === 'all_enemies') {
                         addLog(`消耗了 ${targetEnemy.name} 的 ${stacksToConsume} 层[${statusEffect.name}]，对所有敌人造成 ${damage} 点爆发伤害！`, 'text-red-500');
@@ -930,6 +1012,9 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                         tgt.hp -= damage;
                         playSound('status_damage');
                         triggerAnimation(tgt.id, effectId === 'burn' ? 'burn' : 'bleed');
+                         if (tgt.hp <= 0) {
+                            checkForOnKillEffects(tgt);
+                        }
                     }
                     if (consumeTarget === 'all_enemies') {
                          addLog(`消耗了 ${targetEnemy.name} 的 ${stacksToConsume} 层[${statusEffect.name}]，对所有敌人造成 ${damage} 点爆发伤害！`, 'text-red-500');
@@ -956,6 +1041,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                     addLog(`消耗了 ${targetEnemy.name} 的 ${stacksToConsume} 层[${statusEffect.name}]，你获得了 ${block} 点格挡！`, 'text-blue-400');
                 }
                 
+                handleReinforcements();
+
                 statusEffect.value -= stacksToConsume;
                 if (statusEffect.value <= 0) {
                     targetEnemy.statusEffects = targetEnemy.statusEffects.filter(e => e.id !== effectId);
@@ -1213,25 +1300,45 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             }
         }
 
-        const allEnemiesDefeated = draft.combatState.enemies.every(e => e.hp <= 0);
+        const allEnemiesDefeated = draft.combatState.enemies.every(e => e.hp <= 0) && draft.combatState.enemyReinforcements.length === 0;
         if (allEnemiesDefeated) {
             draft.combatState.phase = 'victory';
         }
     }
-
+    
     const setupCombat = (draft: Draft<GameState>, combatEvent: CombatEvent) => {
-        const stage = getStage();
-        const enemies = combatEvent.enemies.map((enemyId, index) => {
+        const chapter = getCurrentChapter();
+        const expectedStats = EXPECTED_PLAYER_STATS_BY_CHAPTER[chapter] || EXPECTED_PLAYER_STATS_BY_CHAPTER[1];
+    
+        let fieldEnemyIds = [...combatEvent.enemies];
+        let reinforcements: string[] = [];
+    
+        if (combatEvent.maxEnemiesOnField && combatEvent.maxEnemiesOnField < fieldEnemyIds.length) {
+            reinforcements = fieldEnemyIds.splice(combatEvent.maxEnemiesOnField);
+        }
+    
+        const enemies = fieldEnemyIds.map((enemyId, index) => {
             const enemyData = ENEMIES[enemyId];
-            const finalHp = Math.round(enemyData.maxHp * (1 + (stage - 1) * 0.08));
-            const finalAttack = Math.round(enemyData.attack * (1 + (stage - 1) * 0.06));
-
+            
+            const finalHp = enemyData.maxHp < expectedStats.maxHp
+                ? Math.round((enemyData.maxHp + expectedStats.maxHp) / 2)
+                : enemyData.maxHp;
+    
+            const finalAttack = enemyData.attack < expectedStats.attack
+                ? Math.round((enemyData.attack + expectedStats.attack) / 2)
+                : enemyData.attack;
+    
+            const finalDefense = enemyData.defense < expectedStats.defense
+                ? Math.round((enemyData.defense + expectedStats.defense) / 2)
+                : enemyData.defense;
+    
             return {
                 ...enemyData,
                 id: `${enemyId}_${index}`,
                 hp: finalHp,
                 maxHp: finalHp,
                 attack: finalAttack,
+                defense: finalDefense,
                 deck: shuffle(enemyData.deck),
                 statusEffects: [],
                 hand: [],
@@ -1256,7 +1363,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         
         draft.interimCombatState = undefined;
         draft.player.tideCounter = 0;
-
+    
         draft.combatState = {
             phase: 'player_turn',
             enemies,
@@ -1283,6 +1390,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             hpThresholdTriggered: false,
             debuffsAppliedThisTurn: 0,
             damageTakenThisTurn: 0,
+            enemyReinforcements: reinforcements,
+            maxEnemiesOnField: combatEvent.maxEnemiesOnField,
         };
         
         startPlayerTurn();
@@ -1293,10 +1402,15 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       case 'START_GAME':
         if (draft.player.completedMissions.length === 0) {
             draft.currentMissionId = 'prologue';
-            draft.status = GameStatus.IN_MISSION_DIALOGUE;
+            draft.status = GameStatus.PROLOGUE_START;
+            draft.currentEventIndex = 0;
         } else {
             draft.status = GameStatus.HUB;
         }
+        break;
+
+      case 'FINISH_PROLOGUE_START':
+        draft.status = GameStatus.IN_MISSION_DIALOGUE;
         break;
       
       case 'RESTART_GAME':
@@ -1318,13 +1432,35 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         }
         break;
 
-      case 'SELECT_MISSION':
-        draft.currentMissionId = action.payload;
+      case 'SELECT_MISSION': {
+        const { missionId, isReplay } = action.payload;
+        draft.currentMissionId = missionId;
         draft.status = GameStatus.MISSION_BRIEFING;
         draft.currentEventIndex = 0;
         draft.isFirstCombatOfMission = true;
-        draft.missionStartState = JSON.parse(JSON.stringify(state));
+        draft.currentMissionIsReplay = !!isReplay;
+        if (!isReplay) {
+            draft.missionStartState = JSON.parse(JSON.stringify(state));
+        } else {
+            draft.missionStartState = undefined; // No checkpoints for replays
+        }
         break;
+      }
+      
+      case 'START_MISSION': {
+        if (!draft.currentMissionId) break;
+        const mission = MISSIONS[draft.currentMissionId];
+        const firstEvent = mission.events?.[0];
+    
+        if (firstEvent?.type === 'dialogue' && firstEvent.character === Character.System) {
+            draft.status = GameStatus.MISSION_START;
+            draft.currentEventIndex = 0;
+        } else {
+            draft.status = GameStatus.IN_MISSION_DIALOGUE;
+            draft.currentEventIndex = 0;
+        }
+        break;
+      }
 
       case 'ADVANCE_STORY': {
         if (!draft.currentMissionId) break;
@@ -1454,11 +1590,16 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       
       case 'RETURN_TO_HUB': {
         if (draft.currentMissionId && draft.status === GameStatus.MISSION_VICTORY) {
-          if (!draft.player.completedMissions.includes(draft.currentMissionId)) {
-            const mission = MISSIONS[draft.currentMissionId];
-            if (mission) {
-              draft.player.completedMissions.push(draft.currentMissionId);
-              draft.player.dreamSediment += mission.rewards.dreamSediment;
+          const mission = MISSIONS[draft.currentMissionId];
+          if (mission) {
+            if (draft.currentMissionIsReplay) {
+              const replayReward = Math.round(mission.rewards.dreamSediment * 0.5);
+              draft.player.dreamSediment += replayReward;
+            } else {
+              if (!draft.player.completedMissions.includes(draft.currentMissionId)) {
+                draft.player.completedMissions.push(draft.currentMissionId);
+                draft.player.dreamSediment += mission.rewards.dreamSediment;
+              }
             }
           }
         }
@@ -1699,7 +1840,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                 if (playerStats.derivedEffects.onFirstDiscard) {
                     const bonus = playerStats.derivedEffects.onFirstDiscard.nextAttackDamageBonus;
                     draft.player.statusEffects.push({
-                        id: 'empowered', name: '强化', description: `下一张攻击牌伤害提升${bonus*100}%。`, type: 'buff', duration: 2
+                        id: 'empowered', name: '强化', description: `下一张攻击牌伤害提升${bonus*100}%。`, type: 'buff', duration: 2, value: bonus
                     });
                     addLog(`[数据删除匕首] 效果触发，获得[强化]！`, 'text-teal-300');
                 }
@@ -1734,7 +1875,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         draft.combatState.phase = 'player_turn';
         draft.combatState.discardAction = undefined;
         
-        const allEnemiesDefeated = draft.combatState.enemies.every(e => e.hp <= 0);
+        const allEnemiesDefeated = draft.combatState.enemies.every(e => e.hp <= 0) && draft.combatState.enemyReinforcements.length === 0;
         if (allEnemiesDefeated) {
             draft.combatState.phase = 'victory';
         }
@@ -1795,7 +1936,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         draft.combatState.phase = 'player_turn';
         draft.combatState.effectChoiceAction = undefined;
 
-        const allEnemiesDefeated = draft.combatState.enemies.every(e => e.hp <= 0);
+        const allEnemiesDefeated = draft.combatState.enemies.every(e => e.hp <= 0) && draft.combatState.enemyReinforcements.length === 0;
         if (allEnemiesDefeated) {
             draft.combatState.phase = 'victory';
         }
@@ -1913,6 +2054,24 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       case 'PROCESS_ENEMY_ACTION': {
         if (!draft.combatState || draft.combatState.phase !== 'enemy_turn') break;
         
+        // FIX: Centralized status effect processing at the start of the enemy phase
+        // to correctly handle reinforcements from status damage.
+        if (draft.combatState.activeEnemyIndex === 0 && draft.combatState.activeActionIndex === 0) {
+            let anyEnemyDiedFromStatus = false;
+            draft.combatState.enemies.forEach(enemy => {
+                if (enemy.hp > 0) {
+                    const hpBefore = enemy.hp;
+                    applyStatusEffectsStartOfTurn(enemy, false);
+                    if (enemy.hp <= 0 && hpBefore > 0) {
+                        anyEnemyDiedFromStatus = true;
+                    }
+                }
+            });
+            if (anyEnemyDiedFromStatus) {
+                handleReinforcements();
+            }
+        }
+
         const currentEnemyIndex = draft.combatState.activeEnemyIndex;
         if (currentEnemyIndex === null || currentEnemyIndex >= draft.combatState.enemies.length) {
             startPlayerTurn();
@@ -1927,7 +2086,6 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             const isFirstActionOfTurn = currentActionIndex === 0;
             if (isFirstActionOfTurn) {
                 draft.combatState.attackingEnemyId = enemy.id;
-                applyStatusEffectsStartOfTurn(enemy, false);
                 enemy.tideCounter = (enemy.tideCounter || 0) + 1;
             }
             
@@ -2004,11 +2162,14 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                     if (card.effect.damageMultiplier) {
                         const isBound = enemy.statusEffects.some(e => e.id === 'bind');
                         if (!isBound) {
-                            dealBleedDamageAndTriggerEffects(enemy, enemy.id, playerStats);
+                            const diedFromBleed = dealBleedDamageAndTriggerEffects(enemy, enemy.id, playerStats);
+                            if (diedFromBleed) {
+                                handleReinforcements();
+                            }
                             
                             if (enemy.hp > 0) {
                                 const hitCount = card.effect.hitCount || 1;
-                                const wasEmpowered = enemy.statusEffects.some(e => e.id === 'empowered');
+                                const empoweredEffect = enemy.statusEffects.find(e => e.id === 'empowered');
                                 const inAnnihilationMode = enemy.statusEffects.some(e => e.id === 'annihilation_mode_empowered');
                                 
                                 let targetIdForAction: string = 'player';
@@ -2047,9 +2208,20 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                                     
                                     let damage = enemy.attack * card.effect.damageMultiplier;
                                     
-                                    if(wasEmpowered || inAnnihilationMode) {
-                                        damage *= 2.5;
-                                        if (i === 0) addLog(`${enemy.name} 的攻击被[强化]了！`, 'text-yellow-400');
+                                    // --- REFACTORED DAMAGE MODIFIER LOGIC ---
+                                    if (inAnnihilationMode) {
+                                        // Annihilation mode is a fixed +150% damage
+                                        damage *= 1.25; 
+                                        if (i === 0) {
+                                            addLog(`${enemy.name} 处于[歼灭模式]，伤害大幅提升！`, 'text-red-500');
+                                        }
+                                    } else if (empoweredEffect) {
+                                        // Empowered dynamically reads its bonus value. Default to +50%.
+                                        const bonus = empoweredEffect.value || 0.5; 
+                                        damage *= (1 + bonus);
+                                        if (i === 0) {
+                                            addLog(`${enemy.name} 的攻击被[强化]了！`, 'text-yellow-400');
+                                        }
                                     }
                                     
                                     let damageToBlock = 0;
@@ -2164,7 +2336,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                                     }
                                 }
 
-                                if (wasEmpowered) {
+                                if (empoweredEffect) {
                                     enemy.statusEffects = enemy.statusEffects.filter(e => e.id !== 'empowered');
                                 }
                             }
@@ -2319,7 +2491,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             break;
         }
         
-        const allEnemiesDefeated = draft.combatState.enemies.every(e => e.hp <= 0);
+        const allEnemiesDefeated = draft.combatState.enemies.every(e => e.hp <= 0) && draft.combatState.enemyReinforcements.length === 0;
         if (allEnemiesDefeated) {
             draft.combatState.phase = 'victory';
             break;
@@ -2484,7 +2656,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         if (draft.player.dreamSediment >= cost) {
             draft.player.dreamSediment -= cost;
             const stage = getStage();
-            const newWeapon = generateRandomEquipment(stage, 'weapon');
+            const chapter = getCurrentChapter();
+            const newWeapon = generateRandomEquipment(stage, 'weapon', chapter);
             draft.customEquipment[newWeapon.id] = newWeapon;
             draft.player.inventory.push(newWeapon.id);
             draft.newlyAcquiredEquipmentIds = [newWeapon.id];
@@ -2497,7 +2670,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         if (draft.player.dreamSediment >= cost) {
             draft.player.dreamSediment -= cost;
             const stage = getStage();
-            const newEquipment = generateRandomEquipment(stage, 'equipment');
+            const chapter = getCurrentChapter();
+            const newEquipment = generateRandomEquipment(stage, 'equipment', chapter);
             draft.customEquipment[newEquipment.id] = newEquipment;
             draft.player.inventory.push(newEquipment.id);
             draft.newlyAcquiredEquipmentIds = [newEquipment.id];

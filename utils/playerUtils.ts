@@ -1,5 +1,5 @@
 import { PlayerState, PlayerStats, Equipment, AffixEffect, EquipmentSet } from '../types';
-import { EQUIPMENT, EQUIPMENT_SETS } from '../constants';
+import { EQUIPMENT, EQUIPMENT_SETS, WEAPON_TEMPLATES, EQUIPMENT_TEMPLATES } from '../constants';
 
 // Rewrote the function to be more type-safe by using Object.keys instead of for...in.
 const mergeEffects = (target: AffixEffect, source: AffixEffect) => {
@@ -47,6 +47,16 @@ export const getEffectivePlayerStats = (player: PlayerState, customEquipment: Re
     // Apply bonuses from all equipped items (base + affixes)
     const effectiveStats = equippedItems.reduce((stats, item) => {
         if (item) {
+            // Apply core passive from template
+            if (item.templateId) {
+                const template = item.slot === 'weapon' 
+                    ? WEAPON_TEMPLATES[item.templateId] 
+                    : EQUIPMENT_TEMPLATES[item.templateId];
+                if (template) {
+                    mergeEffects(stats.derivedEffects, template.corePassive);
+                }
+            }
+
             // Apply base effects
             mergeEffects(stats.derivedEffects, item.baseEffects);
             
@@ -81,7 +91,8 @@ export const getEffectivePlayerStats = (player: PlayerState, customEquipment: Re
         }
     }
     
-    // Apply derived effects to base stats
+    // --- Stat Calculation Refactor ---
+    // 1. Apply all FLAT bonuses first.
     effectiveStats.maxHp += effectiveStats.derivedEffects.maxHp || 0;
     effectiveStats.maxCp += effectiveStats.derivedEffects.maxCp || 0;
     effectiveStats.attack += effectiveStats.derivedEffects.attack || 0;
@@ -89,6 +100,12 @@ export const getEffectivePlayerStats = (player: PlayerState, customEquipment: Re
     effectiveStats.blockPower += effectiveStats.derivedEffects.blockPower || 0;
     effectiveStats.cpRecovery += effectiveStats.derivedEffects.cpRecovery || 0;
     effectiveStats.initialDraw! += effectiveStats.derivedEffects.initialDraw || 0;
+
+    // 2. Apply all PERCENTAGE bonuses based on the new flat totals.
+    effectiveStats.maxHp = Math.round(effectiveStats.maxHp * (1 + (effectiveStats.derivedEffects.maxHpPercent || 0)));
+    effectiveStats.attack = Math.round(effectiveStats.attack * (1 + (effectiveStats.derivedEffects.attackPercent || 0)));
+    effectiveStats.defense = Math.round(effectiveStats.defense * (1 + (effectiveStats.derivedEffects.defensePercent || 0)));
+    effectiveStats.blockPower = Math.round(effectiveStats.blockPower * (1 + (effectiveStats.derivedEffects.blockPowerPercent || 0)));
 
     // Ensure current HP/CP don't exceed the new calculated max values
     effectiveStats.hp = Math.min(effectiveStats.hp, effectiveStats.maxHp);

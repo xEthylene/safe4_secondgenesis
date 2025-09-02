@@ -26,7 +26,8 @@ const ChoiceView: React.FC = () => {
             dispatch({ type: 'RETURN_TO_HUB' }); // This will complete the mission and give rewards
         }
         // Then, select the new mission path
-        setTimeout(() => dispatch({ type: 'SELECT_MISSION', payload: missionId }), 100);
+        // FIX: The payload for 'SELECT_MISSION' must be an object.
+        setTimeout(() => dispatch({ type: 'SELECT_MISSION', payload: { missionId } }), 100);
     };
 
     return (

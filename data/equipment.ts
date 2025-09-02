@@ -82,77 +82,78 @@ export const WEAPON_TEMPLATES: Record<string, WeaponTemplate> = {
 
 export const EQUIPMENT_TEMPLATES: Record<string, EquipmentTemplate> = {
     'standard_reactor': {
-        id: 'standard_reactor', name: '标准反应堆', baseStat: 'maxHp',
-        corePassiveDescription: '最大HP +{随进度成长的数值}。',
+        id: 'standard_reactor', name: '标准反应堆',
+        corePassiveDescription: '提供基础最大HP和防御力。',
         corePassive: {}
     },
-    'cp_capacitor': {
-        id: 'cp_capacitor', name: '算力电容', baseStat: 'maxCp',
-        corePassiveDescription: '最大CP +{随进度成长的数值}。',
+    'auxiliary_plating': {
+        id: 'auxiliary_plating', name: '辅助装甲板',
+        corePassiveDescription: '提供基础最大HP和防御力。',
         corePassive: {}
     },
     'aegis_protocol': {
-        id: 'aegis_protocol', name: '神盾协议', baseStat: 'maxHp',
+        id: 'aegis_protocol', name: '神盾协议',
         corePassiveDescription: '你从卡牌获得的格挡值提升25%。',
         corePassive: { skillBlockBonus: 0.25 }
     },
     'self_repair_system': {
-        id: 'self_repair_system', name: '自修复系统', baseStat: 'maxHp',
+        id: 'self_repair_system', name: '自修复系统',
         corePassiveDescription: '回合结束时，若你本回合未受到生命伤害，则恢复5点HP。',
         corePassive: { onNoHpDamageHeal: 5 }
     },
     'tactical_scope': {
-        id: 'tactical_scope', name: '战术目镜', baseStat: 'maxCp',
+        id: 'tactical_scope', name: '战术目镜',
         corePassiveDescription: '每当你使用3张牌后，抽1张牌。',
         corePassive: { afterCardsPlayed: { count: 3, drawCards: 1 } }
     },
     'overload_capacitor': {
-        id: 'overload_capacitor', name: '超载电容器', baseStat: 'maxCp',
+        id: 'overload_capacitor', name: '超载电容器',
         corePassiveDescription: '你的[充能]层数不会在回合结束时清空。',
         corePassive: { chargeNoDecay: true }
     },
     'thermal_armor': {
-        id: 'thermal_armor', name: '隔热装甲', baseStat: 'maxHp',
+        id: 'thermal_armor', name: '隔热装甲',
         corePassiveDescription: '回合开始时，场上每有一个处于[烧伤]状态的敌人，便获得20%防御力的格挡。',
         corePassive: { onBurnEnemyBlock: 0.2 }
     },
     'pain_amplifier': {
-        id: 'pain_amplifier', name: '痛苦放大器', baseStat: 'maxHp',
+        id: 'pain_amplifier', name: '痛苦放大器',
         corePassiveDescription: '你对敌人施加[流血]时，也会对其施加1回合[易伤]（每回合1次）。',
         corePassive: { onBleedApplyVulnerable: { duration: 1 } }
     },
     'recycling_processor': {
-        id: 'recycling_processor', name: '回收处理器', baseStat: 'maxCp',
+        id: 'recycling_processor', name: '回收处理器',
         corePassiveDescription: '每回合你第一次弃牌时，抽1张牌。',
         corePassive: { onFirstDiscardDraw: 1 }
     },
     'singularity_core': {
-        id: 'singularity_core', name: '奇点核心', baseStat: 'maxHp',
+        id: 'singularity_core', name: '奇点核心',
         corePassiveDescription: '当你打出费用为3或更高的牌时，获得50%防御力的格挡。',
         corePassive: { onHighCostCardBlock: { minCost: 3, blockMultiplier: 0.5 } }
     },
     'adrenaline_pump': {
-        id: 'adrenaline_pump', name: '肾上腺素泵', baseStat: 'maxHp',
+        id: 'adrenaline_pump', name: '肾上腺素泵',
         corePassiveDescription: '当你的生命值首次低于50%时，立刻获得2点CP并抽2张牌。',
         corePassive: { onHpBelowThreshold: { threshold: 50, gainCp: 2, drawCards: 2 } }
     },
     'status_analyzer': {
-        id: 'status_analyzer', name: '状态分析仪', baseStat: 'maxCp',
+        id: 'status_analyzer', name: '状态分析仪',
         corePassiveDescription: '每当你对敌人施加一个减益状态（Debuff）时，获得1点[充能]。',
         corePassive: { onDebuffGainCharge: 1 }
     }
 };
 
 export const WEAPON_AFFIX_POOL: Affix[] = [
-    // --- Basic Stats ---
-    { description: '攻击力 +{value}', effect: { attack: 5 } },
-    { description: '防御 +{value}', effect: { defense: 3 } },
-    { description: '防御力 +{value}', effect: { blockPower: 4 } },
-    { description: '最大HP +{value}', effect: { maxHp: 10 } },
-    // --- Keyword Synergy ---
-    { description: '你施加的[烧伤]层数+{value}', effect: { applyBurnStacks: 2 } },
-    { description: '你施加的[流血]层数+{value}', effect: { applyBleedStacks: 2 } },
-    { description: '你的[充能]获取量+{value}', effect: { extraChargeGain: 1 } },
+    // --- Basic Stats (Percentage) ---
+    { description: '攻击力 +5%', effect: { attackPercent: 0.05 } },
+    { description: '防御 +8%', effect: { defensePercent: 0.08 } },
+    { description: '防御力 +5%', effect: { blockPowerPercent: 0.05 } },
+    { description: '最大HP +5%', effect: { maxHpPercent: 0.05 } },
+    { description: '最大CP +1', effect: { maxCp: 1 } },
+    // --- Keyword Synergy (Static) ---
+    { description: '你施加的[烧伤]层数+2', effect: { applyBurnStacks: 2 } },
+    { description: '你施加的[流血]层数+2', effect: { applyBleedStacks: 2 } },
+    { description: '你的[充能]获取量+1', effect: { extraChargeGain: 1 } },
     { description: '[烧伤]造成的伤害提升20%。', effect: { burnDamageBonus: 0.20 } },
     { description: '[流血]造成的伤害提升20%。', effect: { bleedDamageBonus: 0.20 } },
     // --- Triggered Effects ---
@@ -168,11 +169,12 @@ export const WEAPON_AFFIX_POOL: Affix[] = [
 ];
 
 export const EQUIPMENT_AFFIX_POOL: Affix[] = [
-    // --- Basic Stats ---
-    { description: '最大HP +{value}', effect: { maxHp: 20 } },
-    { description: '最大CP +{value}', effect: { maxCp: 2 } },
-    { description: '防御 +{value}', effect: { defense: 3 } },
-    { description: '防御力 +{value}', effect: { blockPower: 5 } },
+    // --- Basic Stats (Percentage & Flat) ---
+    { description: '最大HP +8%', effect: { maxHpPercent: 0.08 } },
+    { description: '最大CP +10%', effect: { maxCpPercent: 0.10 } },
+    { description: '最大CP +1', effect: { maxCp: 1 } },
+    { description: '防御 +10%', effect: { defensePercent: 0.10 } },
+    { description: '防御力 +8%', effect: { blockPowerPercent: 0.08 } },
     // --- Resource Management ---
     { description: 'CP恢复 +1', effect: { cpRecovery: 1 } },
     { description: '战斗开始时，额外抽1张牌', effect: { initialDraw: 1 } },
@@ -203,24 +205,14 @@ export const EQUIPMENT: Record<string, Equipment> = {
     baseEffects: { attack: 10 },
     affixes: [],
   },
-  'starter_reactor': {
-    id: 'starter_reactor',
-    name: '标准反应堆',
-    description: EQUIPMENT_TEMPLATES['standard_reactor'].corePassiveDescription,
+  'starter_shield_generator': {
+    id: 'starter_shield_generator',
+    name: '基础护盾发生器',
+    description: '提供基础最大HP和防御力。',
     slot: 'equipment',
     rarity: CardRarity.COMMON,
     templateId: 'standard_reactor',
-    baseEffects: { maxHp: 15 },
-    affixes: [],
-  },
-  'starter_capacitor': {
-    id: 'starter_capacitor',
-    name: '算力电容',
-    description: EQUIPMENT_TEMPLATES['cp_capacitor'].corePassiveDescription,
-    slot: 'equipment',
-    rarity: CardRarity.COMMON,
-    templateId: 'cp_capacitor',
-    baseEffects: { maxCp: 2 },
+    baseEffects: { maxHp: 15, blockPower: 5 },
     affixes: [],
   },
 

@@ -12,6 +12,8 @@ import PlayerStatusDisplay from '../components/PlayerStatusDisplay';
 import ChoiceView from '../components/views/ChoiceView';
 import SupplyStopView from '../components/views/SupplyStopView';
 import CombatStartView from '../components/views/CombatStartView';
+import MissionStartView from '../components/views/MissionStartView';
+import PrologueStartView from '../components/views/PrologueStartView';
 import { getDynamicCardDescription } from '../utils/cardUtils';
 import { getEffectivePlayerStats } from '../utils/playerUtils';
 
@@ -65,9 +67,20 @@ const getRarityTextColor = (rarity: CardRarity) => {
 
 const Card: React.FC<{ card: CardType; stats?: Partial<PlayerStats>; }> = ({ card, stats }) => {
     const description = stats ? getDynamicCardDescription(card, stats) : card.description;
+    const isEpic = card.rarity === CardRarity.EPIC;
+    const isRare = card.rarity === CardRarity.RARE;
+
+    const holographicClass = isEpic ? 'holographic' : isRare ? 'rare-foil' : '';
+    const holographicStyle = isEpic 
+        ? { '--holo1': '#efb2fb', '--holo2': '#acc6f8' }
+        : isRare
+        ? { '--rare1': '#60a5fa', '--rare2': '#3b82f6' }
+        : {};
+
     return (
         <div
-            className={`w-full h-full border-4 ${getRarityColorStyle(card.rarity)} rounded-lg p-3 flex flex-col justify-between text-left shadow-lg`}
+            className={`w-full h-full border-4 ${getRarityColorStyle(card.rarity)} rounded-lg p-3 flex flex-col justify-between text-left shadow-lg ${holographicClass}`}
+            style={holographicStyle as React.CSSProperties}
         >
             <div>
                 <h3 className="font-bold text-sm md:text-base text-white">{card.name}</h3>
@@ -80,6 +93,11 @@ const Card: React.FC<{ card: CardType; stats?: Partial<PlayerStats>; }> = ({ car
 };
 
 const EquipmentCard: React.FC<{ item: Equipment }> = ({ item }) => {
+    const baseStats = [];
+    if (item.baseEffects.attack) baseStats.push({ label: '攻击', value: item.baseEffects.attack, color: 'text-yellow-400' });
+    if (item.baseEffects.maxHp) baseStats.push({ label: '最大HP', value: item.baseEffects.maxHp, color: 'text-red-400' });
+    if (item.baseEffects.blockPower) baseStats.push({ label: '防御力', value: item.baseEffects.blockPower, color: 'text-gray-300' });
+
     return (
         <div className={`w-full h-full border-4 ${getRarityColorStyle(item.rarity)} rounded-lg p-3 flex flex-col text-left shadow-lg`}>
             <div>
@@ -88,6 +106,17 @@ const EquipmentCard: React.FC<{ item: Equipment }> = ({ item }) => {
             </div>
             <div className="my-2 border-t border-gray-600"/>
             <p className="text-sm text-gray-300">{item.description}</p>
+            
+            {baseStats.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-600">
+                    {baseStats.map(stat => (
+                        <p key={stat.label} className="text-sm">
+                            {stat.label}: <span className={`font-bold ${stat.color}`}>{stat.value}</span>
+                        </p>
+                    ))}
+                </div>
+            )}
+
             <div className="my-2 border-t border-gray-600"/>
             <ul className="space-y-1 text-sm flex-grow">
                 {item.affixes.map((affix, i) => (
@@ -208,8 +237,10 @@ const GameScreen: React.FC = () => {
     const renderContentForStatus = (status: GameStatus) => {
         switch (status) {
             case GameStatus.TITLE_SCREEN: return <TitleScreen />;
+            case GameStatus.PROLOGUE_START: return <PrologueStartView />;
             case GameStatus.HUB: return <HubView />;
             case GameStatus.MISSION_BRIEFING: return <MissionBriefingView />;
+            case GameStatus.MISSION_START: return <MissionStartView />;
             case GameStatus.IN_MISSION_DIALOGUE: return <DialogueView />;
             case GameStatus.COMBAT_START: return <CombatStartView />;
             case GameStatus.IN_MISSION_COMBAT: return <CombatView />;

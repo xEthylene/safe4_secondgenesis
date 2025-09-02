@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useGame } from '../../contexts/GameContext';
 // FIX: Import MISSIONS from the centralized constants file.
@@ -9,6 +10,10 @@ const MissionBriefingView: React.FC = () => {
     if (!state.currentMissionId) return null;
 
     const mission = MISSIONS[state.currentMissionId];
+    const isReplay = state.currentMissionIsReplay;
+    const rewardAmount = isReplay 
+        ? Math.round(mission.rewards.dreamSediment * 0.5) 
+        : mission.rewards.dreamSediment;
 
     return (
         <div className="flex flex-col h-full items-center justify-center p-4 md:p-8 pt-16 animate-fadeIn">
@@ -28,7 +33,7 @@ const MissionBriefingView: React.FC = () => {
 
                 <h2 className="text-lg md:text-xl font-semibold mb-2 text-gray-300">报酬</h2>
                 <p className="text-purple-300 mt-2 text-base md:text-lg">
-                    +{mission.rewards.dreamSediment} 梦境沉淀
+                    +{rewardAmount} 梦境沉淀 {isReplay && <span className="text-sm text-gray-400">(回战奖励)</span>}
                 </p>
                 
                 <div className="mt-8 flex justify-end space-x-4">
@@ -39,7 +44,7 @@ const MissionBriefingView: React.FC = () => {
                         返回
                     </button>
                     <button
-                        onClick={() => dispatch({ type: 'ADVANCE_STORY' })}
+                        onClick={() => dispatch({ type: 'START_MISSION' })}
                         className="px-6 py-2 bg-cyan-600 text-white font-semibold rounded-md hover:bg-cyan-500 transition-colors"
                     >
                         接受任务

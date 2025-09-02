@@ -5,6 +5,7 @@ import { CARDS, ENEMY_CARDS, CONSTRUCTS, KEYWORD_DEFINITIONS } from '../../const
 import { DocumentDuplicateIcon, ArchiveBoxIcon, ShieldCheckIcon, RectangleStackIcon, HandRaisedIcon, ExclamationTriangleIcon, PlusIcon, CubeIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 import { getDynamicCardDescription } from '../../utils/cardUtils';
 import { getEffectivePlayerStats } from '../../utils/playerUtils';
+import StatusVFX from '../StatusVFX';
 import TurnBanner from '../TurnBanner';
 
 const KEYWORDS_TO_HIGHLIGHT = [
@@ -103,11 +104,20 @@ const getRarityColor = (rarity: CardRarity) => {
 const Card: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; style?: CSSProperties; className?: string, effectiveCost?: number }> = ({ card, stats, style, className, effectiveCost }) => {
     const description = stats ? getDynamicCardDescription(card, stats) : card.description;
     const displayCost = card.costOverride ?? (effectiveCost !== undefined ? effectiveCost : card.cost);
+    const isEpic = card.rarity === CardRarity.EPIC;
+    const isRare = card.rarity === CardRarity.RARE;
+
+    const holographicClass = isEpic ? 'holographic' : isRare ? 'rare-foil' : '';
+    const holographicStyle = isEpic 
+        ? { '--holo1': '#efb2fb', '--holo2': '#acc6f8' }
+        : isRare
+        ? { '--rare1': '#60a5fa', '--rare2': '#3b82f6' }
+        : {};
 
     return (
         <div
-            style={style}
-            className={`w-40 h-56 border-2 md:border-4 ${getRarityColor(card.rarity)} rounded-lg p-3 flex flex-col justify-between text-left shadow-lg backdrop-blur-sm ${className}`}
+            style={{ ...style, ...holographicStyle } as React.CSSProperties}
+            className={`w-40 h-56 border-2 md:border-4 ${getRarityColor(card.rarity)} rounded-lg p-3 flex flex-col justify-between text-left shadow-lg backdrop-blur-sm ${className} ${holographicClass}`}
         >
             <div>
                 <h3 className="font-bold text-base text-white">{card.name}</h3>
@@ -123,6 +133,15 @@ const MobileCard: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; cla
     const description = stats ? getDynamicCardDescription(card, stats) : card.description;
     const displayCost = card.costOverride ?? (effectiveCost !== undefined ? effectiveCost : card.cost);
     const descriptionRef = useRef<HTMLParagraphElement>(null);
+    const isEpic = card.rarity === CardRarity.EPIC;
+    const isRare = card.rarity === CardRarity.RARE;
+
+    const holographicClass = isEpic ? 'holographic' : isRare ? 'rare-foil' : '';
+    const holographicStyle = isEpic 
+        ? { '--holo1': '#efb2fb', '--holo2': '#acc6f8' }
+        : isRare
+        ? { '--rare1': '#60a5fa', '--rare2': '#3b82f6' }
+        : {};
 
     useLayoutEffect(() => {
         const p = descriptionRef.current;
@@ -151,8 +170,8 @@ const MobileCard: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; cla
 
     return (
         <div
-            style={style}
-            className={`w-24 h-36 border-2 ${getRarityColor(card.rarity)} rounded-md p-1.5 flex flex-col justify-between text-left shadow-md backdrop-blur-sm ${className}`}
+            style={{ ...style, ...holographicStyle } as React.CSSProperties}
+            className={`w-24 h-36 border-2 ${getRarityColor(card.rarity)} rounded-md p-1.5 flex flex-col justify-between text-left shadow-md backdrop-blur-sm ${className} ${holographicClass}`}
         >
             <div>
                 <h3 className="font-bold text-[11px] text-white truncate">{card.name}</h3>
@@ -279,17 +298,28 @@ const useCombatEntityAnimation = (entityId: string, currentHp: number, currentBl
         }
     }, [floatingTexts]);
 
-    return { animationClass, floatingTexts };
+    return { animationClass, floatingTexts, trigger };
 };
 
 const ActionIntentIcon: React.FC<{ card: CardType; enemy: Enemy }> = ({ card, enemy }) => {
     let icon = <HandRaisedIcon className="w-4 h-4 text-gray-400" />;
     let value: string | number | null = null;
 
-    const isEmpowered = enemy.statusEffects.some(e => e.id === 'empowered');
+    const empoweredEffect = enemy.statusEffects.find(e => e.id === 'empowered');
+    const inAnnihilationMode = enemy.statusEffects.some(e => e.id === 'annihilation_mode_empowered');
     
     if (card.effect.damageMultiplier) {
-        let damage = Math.round(enemy.attack * card.effect.damageMultiplier * (isEmpowered ? 2.5 : 1.0));
+        let damage = enemy.attack * card.effect.damageMultiplier;
+
+        if (inAnnihilationMode) {
+            damage *= 1.25;
+        } else if (empoweredEffect) {
+            const bonus = empoweredEffect.value || 0.5;
+            damage *= (1 + bonus);
+        }
+        
+        damage = Math.round(damage);
+
         value = damage * (card.effect.hitCount || 1);
         icon = <HandRaisedIcon className="w-4 h-4 text-red-400" />;
     } else if (card.effect.gainBlock) {
@@ -322,7 +352,7 @@ const EnemySprite: React.FC<{
     onActionIntentPress: (card: CardType, enemy: Enemy) => void;
 }> = ({ enemy, isSelected, onSelect, isTargeting, actionCards, isAttacking, currentActionIndex, onActionIntentHover, onActionIntentLeave, onActionIntentPress }) => {
     const hpPercentage = (enemy.hp / enemy.maxHp) * 100;
-    const { animationClass, floatingTexts } = useCombatEntityAnimation(enemy.id, enemy.hp, enemy.block);
+    const { animationClass, floatingTexts, trigger } = useCombatEntityAnimation(enemy.id, enemy.hp, enemy.block);
     const longPressTimer = useRef<number | null>(null);
     
     const isDefeated = enemy.hp <= 0;
@@ -353,6 +383,7 @@ const EnemySprite: React.FC<{
             className={`flex flex-col items-center transition-transform duration-200 relative ${defeatedClass}`}
             onClick={isTargeting && !isDefeated ? onSelect : undefined}
         >
+        <StatusVFX trigger={trigger} />
             <div className="absolute -top-12 w-full flex justify-center items-center gap-1 z-20 h-8">
                  {!isAttacking && actionCards && actionCards.map((card, index) => (
                     <div
@@ -410,7 +441,7 @@ const ConstructSprite: React.FC<{
     isTargeting: boolean;
 }> = ({ construct, isSelected, onSelect, isTargeting }) => {
     const hpPercentage = (construct.hp / construct.maxHp) * 100;
-    const { animationClass, floatingTexts } = useCombatEntityAnimation(construct.instanceId, construct.hp, construct.block);
+    const { animationClass, floatingTexts, trigger } = useCombatEntityAnimation(construct.instanceId, construct.hp, construct.block);
     
     const isDefeated = construct.hp <= 0;
     const selectionClass = isSelected && !isDefeated ? 'border-yellow-400 scale-105' : 'border-gray-500/50';

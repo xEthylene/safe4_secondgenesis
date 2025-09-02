@@ -1,3 +1,5 @@
+
+
 import { Card, CardRarity, StatusEffect, ConstructTemplate } from '../types';
 
 export const MAX_COPIES_PER_RARITY: Record<CardRarity, number> = {
@@ -201,8 +203,8 @@ export const CARDS: Record<string, Card> = {
     effect: { statusEffect: 'chaining', statusEffectDuration: 999, statusEffectValue: 3, target: 'self' }, keywords: ['连锁'],
   },
   'concentrate_fire': {
-    id: 'concentrate_fire', name: '集中火力', description: '获得[强化]状态。你的下一张攻击牌伤害提升150%。', cost: 1, rarity: CardRarity.RARE, type: 'skill',
-    effect: { statusEffect: 'empowered', statusEffectDuration: 2, target: 'self' }, keywords: ['强化'],
+    id: 'concentrate_fire', name: '集中火力', description: '获得[强化]状态。你的下一张攻击牌伤害提升50%。', cost: 1, rarity: CardRarity.RARE, type: 'skill',
+    effect: { statusEffect: 'empowered', statusEffectDuration: 2, statusEffectValue: 0.5, target: 'self' }, keywords: ['强化'],
   },
   'sawtooth_cut': {
     id: 'sawtooth_cut', name: '锯齿切割', description: '造成110%攻击力的伤害。施加10层[流血]。', cost: 2, rarity: CardRarity.RARE, type: 'attack',
@@ -750,7 +752,7 @@ export const ENEMY_CARDS: Record<string, Card> = {
       cost: 0,
       rarity: CardRarity.RARE,
       type: 'skill',
-      effect: { statusEffect: 'empowered', statusEffectDuration: 1, target: 'self' },
+      effect: { statusEffect: 'empowered', statusEffectDuration: 1, target: 'self', statusEffectValue: 0.5 },
   },
   'enemy_tear_flesh': {
     id: 'enemy_tear_flesh',
@@ -988,13 +990,13 @@ export const STATUS_EFFECTS: Record<string, Omit<StatusEffect, 'duration' | 'val
   'empowered': {
     id: 'empowered',
     name: '强化',
-    description: '下一张攻击牌伤害提升150%。',
+    description: '下一张攻击牌伤害提升50%。',
     type: 'buff',
   },
   'annihilation_mode_empowered': {
     id: 'annihilation_mode_empowered',
     name: '歼灭模式',
-    description: '所有攻击伤害提升150%。',
+    description: '所有攻击伤害提升125%。',
     type: 'buff',
   },
   'charge_next_turn': {

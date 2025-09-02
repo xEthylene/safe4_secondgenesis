@@ -215,6 +215,223 @@
     background-size: 40px 69px;
   }
 
+  .eva-caution-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background-image: repeating-linear-gradient(
+      45deg,
+      #ffdd00,
+      #ffdd00 25px,
+      #1a0505 25px,
+      #1a0505 50px
+    );
+    z-index: 5;
+    box-shadow: 0 0 15px rgba(255, 221, 0, 0.4);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+  .eva-caution-bar::before {
+    content: 'C A U T I O N // C A U T I O N // C A U T I O N // C A U T I O N // C A U T I O N // C A U T I O N //';
+    white-space: nowrap;
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 24px;
+    color: rgba(26, 5, 5, 0.8);
+    width: 200%;
+    text-align: center;
+    animation: eva-scroll-text 8s linear infinite;
+  }
+  @keyframes eva-scroll-text {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* Status VFX Animations */
+  @keyframes burn-flame-anim-optimized {
+    0% {
+      transform: translate(0, 0) scale(0);
+      opacity: 1;
+      background-color: #FFDC01; /* yellow */
+    }
+    20% {
+      transform: translate(var(--x-mid), var(--y-mid)) scale(1.2);
+      opacity: 1;
+    }
+    60% {
+      background-color: #FDAC01; /* orange */
+    }
+    100% {
+      transform: translate(var(--x-end), var(--y-end)) scale(0);
+      opacity: 0;
+      background-color: #F73B01; /* red */
+    }
+  }
+  .burn-vfx-container .flame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border-radius: 50% 20% / 40% 60%; /* Organic flame shape */
+    animation: burn-flame-anim-optimized 1.2s ease-out forwards;
+  }
+  .burn-vfx-container .flame:nth-child(1) { width: 12px; height: 18px; --x-mid: -20px; --y-mid: -40px; --x-end: -40px; --y-end: -100px; animation-delay: 0s; }
+  .burn-vfx-container .flame:nth-child(2) { width: 10px; height: 15px; --x-mid: 25px;  --y-mid: -35px; --x-end: 50px;  --y-end: -90px; animation-delay: 0.1s; }
+  .burn-vfx-container .flame:nth-child(3) { width: 14px; height: 20px; --x-mid: 0px;   --y-mid: -50px; --x-end: 0px;   --y-end: -120px; animation-delay: 0.15s; }
+  .burn-vfx-container .flame:nth-child(4) { width: 11px; height: 16px; --x-mid: -30px; --y-mid: -20px; --x-end: -60px; --y-end: -60px; animation-delay: 0.2s; }
+  .burn-vfx-container .flame:nth-child(5) { width: 13px; height: 19px; --x-mid: 35px;  --y-mid: -15px; --x-end: 70px;  --y-end: -40px; animation-delay: 0.25s; }
+  .burn-vfx-container .flame:nth-child(6) { width: 10px; height: 15px; --x-mid: -10px; --y-mid: -45px; --x-end: -20px; --y-end: -110px; animation-delay: 0.3s; }
+  .burn-vfx-container .flame:nth-child(7) { width: 12px; height: 18px; --x-mid: 15px;  --y-mid: -55px; --x-end: 30px;  --y-end: -130px; animation-delay: 0.35s; }
+  .burn-vfx-container .flame:nth-child(8) { width: 11px; height: 16px; --x-mid: -40px; --y-mid: 0px;   --x-end: -90px; --y-end: 0px; animation-delay: 0.4s; }
+  .burn-vfx-container .flame:nth-child(9) { width: 14px; height: 20px; --x-mid: 45px;  --y-mid: 5px;   --x-end: 100px; --y-end: 10px; animation-delay: 0.45s; }
+  .burn-vfx-container .flame:nth-child(10){ width: 10px; height: 15px; --x-mid: 5px;   --y-mid: -60px; --x-end: 10px;  --y-end: -140px; animation-delay: 0.5s; }
+
+  @keyframes bleed-particle-anim {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--x), var(--y)) scale(0); opacity: 0; }
+  }
+  .bleed-vfx-container .particle {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background-color: #b91c1c; /* red-700 */
+    border-radius: 50%;
+    animation: bleed-particle-anim 0.6s ease-out forwards;
+  }
+  .bleed-vfx-container .particle:nth-child(1) { --x: 0px; --y: -50px; }
+  .bleed-vfx-container .particle:nth-child(2) { --x: 43px; --y: -25px; }
+  .bleed-vfx-container .particle:nth-child(3) { --x: 43px; --y: 25px; }
+  .bleed-vfx-container .particle:nth-child(4) { --x: 0px; --y: 50px; }
+  .bleed-vfx-container .particle:nth-child(5) { --x: -43px; --y: 25px; }
+  .bleed-vfx-container .particle:nth-child(6) { --x: -43px; --y: -25px; }
+  .bleed-vfx-container .particle:nth-child(7) { --x: 25px; --y: -43px; animation-delay: 0.1s; }
+  .bleed-vfx-container .particle:nth-child(8) { --x: 50px; --y: 0px; animation-delay: 0.1s; }
+  .bleed-vfx-container .particle:nth-child(9) { --x: 25px; --y: 43px; animation-delay: 0.1s; }
+  .bleed-vfx-container .particle:nth-child(10) { --x: -25px; --y: 43px; animation-delay: 0.1s; }
+  .bleed-vfx-container .particle:nth-child(11) { --x: -50px; --y: 0px; animation-delay: 0.1s; }
+  .bleed-vfx-container .particle:nth-child(12) { --x: -25px; --y: -43px; animation-delay: 0.1s; }
+
+  @keyframes poison-bubble-anim {
+    0% { transform: translateY(0) scale(0.5) translateX(0); opacity: 0; }
+    20% { opacity: 1; }
+    80% { transform: translateY(-70px) scale(1.2) translateX(var(--x-end)); opacity: 1; }
+    100% { transform: translateY(-80px) scale(0) translateX(var(--x-end)); opacity: 0; }
+  }
+  .poison-vfx-container .bubble {
+    position: absolute;
+    background-color: #65a30d; /* lime-600 */
+    border: 1px solid #a3e635; /* lime-400 */
+    border-radius: 50%;
+    animation: poison-bubble-anim 1s ease-in-out forwards;
+  }
+  .poison-vfx-container .bubble:nth-child(1) { width: 12px; height: 12px; bottom: 0; left: 50%; --x-end: -5px; animation-delay: 0s; }
+  .poison-vfx-container .bubble:nth-child(2) { width: 8px; height: 8px; bottom: 5%; left: 40%; --x-end: 10px; animation-delay: 0.1s; }
+  .poison-vfx-container .bubble:nth-child(3) { width: 15px; height: 15px; bottom: 10%; left: 60%; --x-end: -10px; animation-delay: 0.2s; }
+  .poison-vfx-container .bubble:nth-child(4) { width: 10px; height: 10px; bottom: 0; left: 30%; --x-end: 5px; animation-delay: 0.3s; }
+  .poison-vfx-container .bubble:nth-child(5) { width: 13px; height: 13px; bottom: 5%; left: 70%; --x-end: -5px; animation-delay: 0.4s; }
+  .poison-vfx-container .bubble:nth-child(6) { width: 9px; height: 9px; bottom: 15%; left: 45%; --x-end: 8px; animation-delay: 0.5s; }
+  .poison-vfx-container .bubble:nth-child(7) { width: 11px; height: 11px; bottom: 2%; left: 55%; --x-end: -8px; animation-delay: 0.6s; }
+  .poison-vfx-container .bubble:nth-child(8) { width: 7px; height: 7px; bottom: 8%; left: 35%; --x-end: 12px; animation-delay: 0.7s; }
+  .poison-vfx-container .bubble:nth-child(9) { width: 14px; height: 14px; bottom: 12%; left: 65%; --x-end: -12px; animation-delay: 0.8s; }
+  .poison-vfx-container .bubble:nth-child(10) { width: 10px; height: 10px; bottom: 3%; left: 48%; --x-end: 0px; animation-delay: 0.9s; }
+
+  /* --- Holographic & Foil Card Effects --- */
+  .holographic, .rare-foil {
+    isolation: isolate; /* Create stacking context for mix-blend-mode */
+    overflow: hidden; /* Fix pseudo-element overflow on rounded corners */
+  }
+
+  .holographic {
+    --holo1: #efb2fb; /* Epic color 1 */
+    --holo2: #acc6f8; /* Epic color 2 */
+  }
+
+  .holographic:before,
+  .holographic:after {
+    content: "";
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    border-radius: inherit; /* Inherit border-radius from parent */
+    opacity: 0;
+    transition: opacity 0.5s ease-out;
+    pointer-events: none; /* Make sure pseudo-elements don't block clicks */
+  }
+
+  /* Layer 1: Sweeping light band */
+  .holographic:before {
+    background: linear-gradient(
+      115deg,
+      transparent 20%,
+      var(--holo1) 48%,
+      var(--holo2) 52%,
+      transparent 80%
+    );
+    background-size: 250% 250%;
+    background-position: 150% 50%;
+    mix-blend-mode: color-dodge;
+    filter: brightness(0.9) contrast(1.2);
+    z-index: 1;
+    transition: background-position 0.8s ease-out, opacity 0.5s ease-out;
+  }
+
+  /* Layer 2: Sparkle texture */
+  .holographic:after {
+    background-image: url("https://assets.codepen.io/13471/sparkles.gif"), 
+                      url(https://assets.codepen.io/13471/holo.png);
+    background-position: center;
+    background-size: 180%;
+    mix-blend-mode: color-dodge;
+    background-blend-mode: overlay;
+    filter: brightness(1) contrast(1.1);
+    z-index: 2;
+  }
+
+  /* --- Rare Foil Effect --- */
+  .rare-foil {
+    --rare1: #60a5fa; /* blue-400 */
+    --rare2: #3b82f6; /* blue-500 */
+  }
+
+  .rare-foil:before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.5s ease-out;
+    pointer-events: none;
+    background: linear-gradient(
+      115deg,
+      transparent 20%,
+      var(--rare1) 48%,
+      var(--rare2) 52%,
+      transparent 80%
+    );
+    background-size: 250% 250%;
+    background-position: 150% 50%;
+    mix-blend-mode: color-dodge;
+    filter: brightness(0.9) contrast(1.2);
+    z-index: 1;
+    transition: background-position 0.8s ease-out, opacity 0.5s ease-out;
+  }
+
+  /* --- Activate on Hover --- */
+  .holographic:hover:before {
+    opacity: 0.85;
+    background-position: -50% 50%;
+  }
+  
+  .holographic:hover:after {
+    opacity: 0.9;
+  }
+
+  .rare-foil:hover:before {
+    opacity: 0.75;
+    background-position: -50% 50%;
+  }
 </style>
 </head>
   <body>

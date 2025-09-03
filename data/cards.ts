@@ -808,6 +808,30 @@ export const ENEMY_CARDS: Record<string, Card> = {
     type: 'skill',
     effect: { heal: 5, target: 'self' },
   },
+  'slam': {
+      id: 'slam',
+      name: '猛击',
+      description: '造成120%攻击力的伤害，如果目标有护盾，额外造成80%攻击力伤害',
+      cost: 0,
+      rarity: CardRarity.RARE,
+      type: 'attack',
+      effect: {
+        target: 'enemy',
+        conditionalEffect: {
+          condition: {
+            targetHasBlock: true 
+          },
+          ifTrue: {
+            target: 'enemy',
+            damageMultiplier: 2.0 
+          },
+          ifFalse: {
+            target: 'enemy',
+            damageMultiplier: 1.2 
+          }
+        }
+      }
+    },
   'annihilation_mode_activate': {
     id: 'annihilation_mode_activate',
     name: '歼灭模式-启动',

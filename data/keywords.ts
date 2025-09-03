@@ -2,7 +2,7 @@ export const KEYWORD_DEFINITIONS: Record<string, { title: string; description: s
   '消耗': { title: '消耗 (Exhaust)', description: '此牌在使用后，将从当前战斗中移除，无法再次进入你的牌库或弃牌堆。' },
   '无限': { title: '无限 (Infinite)', description: '此牌在使用后，将返回你的手牌，可以再次使用。' },
   '递增': { title: '递增 (Increase)', description: '此牌在本回合中每次使用后，其CP消耗都会增加。' },
-  '充能': { title: '充能 (Charge)', description: '一种可积累和消耗的战斗资源，用于强化特定卡牌的效果或作为使用条件。' },
+  '充能': { title: '充能 (Charge)', description: '一种可积累和消耗的战斗资源，上限为20点。回合结束时损失3点。用于强化特定卡牌的效果或作为使用条件。' },
   '烧伤': { title: '烧伤 (Burn)', description: '持续伤害状态。回合开始时造成伤害，之后层数减半（向下取整）。' },
   '流血': { title: '流血 (Bleed)', description: '持续伤害状态。当带有此状态的角色使用攻击牌时会受到伤害。回合开始时层数-1。' },
   '中毒': { title: '中毒 (Poison)', description: '持续伤害状态。回合开始时受到10%最大生命值的伤害，之后层数-1。' },

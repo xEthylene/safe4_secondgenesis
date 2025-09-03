@@ -70,9 +70,9 @@ export const PLAYER_INITIAL_STATS: Omit<PlayerState, 'dreamSediment' | 'complete
   blockPower: 20,
   activeProxy: 'Qu-alpha',
   statusEffects: [],
-  cardCollection: ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'deploy_turret', 'deploy_turret'],
+  cardCollection: ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'deploy_turret', 'deploy_turret', 'slam'],
   decks: {
-    '1': ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'deploy_turret', 'deploy_turret'],
+    '1': ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'deploy_turret', 'deploy_turret', 'slam'],
     '2': [],
     '3': [],
   },

@@ -636,12 +636,20 @@ const CombatView: React.FC = () => {
         prevPhaseRef.current = combatState.phase;
     }, [combatState?.turn, combatState?.phase]);
 
-    // Mobile Drawer QoL: Auto open/close on turn change
+    const isHandInteractionLocked = isMobile && (combatState?.phase === 'awaiting_discard' || combatState?.phase === 'awaiting_return_to_deck');
+
+    // Mobile Drawer QoL: Auto open/close on turn change & force open on selection
     useEffect(() => {
         if (isMobile && combatState) {
             const currentPhase = combatState.phase;
             const previousPhase = prevPhaseRef.current;
-            if (currentPhase === 'player_turn' && previousPhase !== 'player_turn') {
+            
+            // BUG FIX: Force the drawer open and lock it during card selection phases.
+            if (currentPhase === 'awaiting_discard' || currentPhase === 'awaiting_return_to_deck') {
+                setIsHandDrawerOpen(true);
+            } 
+            // Standard turn-based drawer logic for better UX
+            else if (currentPhase === 'player_turn' && previousPhase !== 'player_turn') {
                 setIsHandDrawerOpen(true);
             } else if (currentPhase === 'enemy_turn' && previousPhase === 'player_turn') {
                 setIsHandDrawerOpen(false);
@@ -687,6 +695,7 @@ const CombatView: React.FC = () => {
     const { animationClass: playerAnimationClass, floatingTexts: playerFloatingTexts } = useCombatEntityAnimation('player', player.hp, combatState?.block || 0);
 
     const isSelectionPhase = combatState?.phase === 'awaiting_discard' || combatState?.phase === 'awaiting_return_to_deck' || combatState?.phase === 'awaiting_effect_choice';
+    const isHandSelectionPhase = combatState?.phase === 'awaiting_discard' || combatState?.phase === 'awaiting_return_to_deck';
 
     const handleActionIntentHover = (card: CardType, enemy: Enemy) => {
         if (!isMobile) {
@@ -1197,9 +1206,9 @@ const CombatView: React.FC = () => {
                 </div>
             </div>
 
-            {isHandDrawerOpen && <div className="md:hidden fixed inset-0 bg-black/50 z-30 drawer-backdrop" onClick={() => setIsHandDrawerOpen(false)}></div>}
+            {isHandDrawerOpen && <div className="md:hidden fixed inset-0 bg-black/50 z-30 drawer-backdrop" onClick={() => !isHandInteractionLocked && setIsHandDrawerOpen(false)}></div>}
             <div className={`md:hidden fixed bottom-0 left-0 right-0 z-40 transition-transform duration-300 ease-in-out ${isHandDrawerOpen ? 'translate-y-0' : 'translate-y-[calc(100%-6rem)]'}`}>
-                <div className={`h-24 bg-black/50 backdrop-blur-md border-t border-blue-500/20 flex items-center justify-between px-4 rounded-t-lg cursor-pointer relative ${playerAnimationClass}`} onClick={() => combatState.phase === 'player_turn' && setIsHandDrawerOpen(!isHandDrawerOpen)}>
+                <div className={`h-24 bg-black/50 backdrop-blur-md border-t border-blue-500/20 flex items-center justify-between px-4 rounded-t-lg ${isHandInteractionLocked ? '' : 'cursor-pointer'} relative ${playerAnimationClass}`} onClick={() => !isHandInteractionLocked && combatState.phase === 'player_turn' && setIsHandDrawerOpen(!isHandDrawerOpen)}>
                     <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-gray-500 rounded-full"></div>
                     <div className="flex-1 flex items-center gap-3 text-lg">
                         <div className="flex items-center gap-1" title="抽牌堆/弃牌堆">

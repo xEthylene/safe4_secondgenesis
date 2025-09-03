@@ -117,6 +117,18 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     const getAllCards = () => ({ ...CARDS, ...draft.customCards, ...ENEMY_CARDS });
     const getAllEquipment = () => ({ ...EQUIPMENT, ...draft.customEquipment });
     
+    const CHARGE_CAP = 20;
+
+    const gainCharge = (amount: number, logMessage: string) => {
+        if (!draft.combatState || amount <= 0) return;
+        const oldCharge = draft.player.charge;
+        draft.player.charge = Math.min(CHARGE_CAP, oldCharge + amount);
+        const actualGained = draft.player.charge - oldCharge;
+        if (actualGained > 0) {
+            addLog(logMessage.replace('{amount}', actualGained.toString()));
+        }
+    };
+    
     const getStage = (): number => {
         return draft.player.completedMissions.length + 1;
     };
@@ -321,8 +333,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             }
 
             if (isPlayer && effect.id === 'charge_next_turn' && typeof effect.value === 'number') {
-                (entity as PlayerState).charge += effect.value;
-                addLog(`你获得了 ${effect.value} 点[充能]。`, 'text-orange-300');
+                gainCharge(effect.value, `你获得了 {amount} 点[充能]。`);
             }
             if (isPlayer && effect.id === 'kindling_effect') {
                 if (draft.combatState) {
@@ -585,15 +596,14 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         applyStatusEffectsStartOfTurn(draft.player, true);
         
         if (playerStats.derivedEffects.onTurnStart) {
-            const { gainBlockPercent, gainCharge } = playerStats.derivedEffects.onTurnStart;
+            const { gainBlockPercent, gainCharge: chargeToGain } = playerStats.derivedEffects.onTurnStart;
             if (gainBlockPercent) {
                 const blockGained = Math.round(playerStats.blockPower * gainBlockPercent);
                 draft.combatState.block += blockGained;
                 addLog(`[装备效果] 你获得了 ${blockGained} 点格挡。`, 'text-teal-300');
             }
-            if (gainCharge) {
-                draft.player.charge += gainCharge;
-                addLog(`[装备效果] 你获得了 ${gainCharge} 点[充能]。`, 'text-teal-300');
+            if (chargeToGain) {
+                gainCharge(chargeToGain, `[装备效果] 你获得了 {amount} 点[充能]。`);
             }
         }
         if (playerStats.derivedEffects.onBurnEnemyBlock) {
@@ -906,18 +916,19 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             }
         }
         
-        if (effect.bonusEffect && (targetEnemy || effect.bonusEffect.condition === 'target_has_bleed')) {
+        if (effect.bonusEffect) {
             const hasBurn = targetEnemy?.statusEffects.some(e => e.id === 'burn');
             const hasBleed = targetEnemy?.statusEffects.some(e => e.id === 'bleed');
             const hasPoison = targetEnemy?.statusEffects.some(e => e.id === 'poison');
+            const hasBlock = targetEnemy && targetEnemy.block > 0;
             const handSize = draft.combatState.hand.length;
 
             let conditionMet = false;
             if (effect.bonusEffect.condition === 'target_has_burn' && hasBurn) conditionMet = true;
             if (effect.bonusEffect.condition === 'target_has_bleed' && hasBleed) conditionMet = true;
             if (effect.bonusEffect.condition === 'target_has_poison' && hasPoison) conditionMet = true;
+            if (effect.bonusEffect.condition === 'target_has_block' && hasBlock) conditionMet = true;
             if (effect.bonusEffect.condition === 'hand_size_less_than_or_equal' && handSize <= (effect.bonusEffect.value || 0)) conditionMet = true;
-
 
             if (conditionMet) {
                 const bonus = effect.bonusEffect.effect;
@@ -1119,8 +1130,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             if (playerStats.derivedEffects.extraChargeGain) {
                 chargeGained += playerStats.derivedEffects.extraChargeGain;
             }
-            draft.player.charge += chargeGained;
-            addLog(`你获得了 ${chargeGained} 层充能。`, 'text-orange-300');
+            gainCharge(chargeGained, `你获得了 {amount} 层充能。`);
         }
         
         if (effect.grantsCounter) {
@@ -1161,8 +1171,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
                     if (effectTemplate.type === 'debuff' && entity !== draft.player) {
                         draft.combatState.debuffsAppliedThisTurn++;
                         if (playerStats.derivedEffects.onDebuffGainCharge) {
-                            draft.player.charge += playerStats.derivedEffects.onDebuffGainCharge;
-                            addLog(`[状态分析仪] 效果触发，你获得了 ${playerStats.derivedEffects.onDebuffGainCharge} 点[充能]。`, 'text-teal-300');
+                            gainCharge(playerStats.derivedEffects.onDebuffGainCharge, `[状态分析仪] 效果触发，你获得了 {amount} 点[充能]。`);
                         }
                     }
 
@@ -1208,6 +1217,10 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             if (cond.targetHasStatus === 'poison') {
                 const hasPoison = targetEnemy?.statusEffects.some(e => e.id === 'poison' && (e.value || 0) > 0);
                 conditionMet = !!hasPoison;
+            }
+            if (cond.targetHasBlock !== undefined) {
+                const hasBlock = targetEnemy ? targetEnemy.block > 0 : false;
+                conditionMet = hasBlock === cond.targetHasBlock;
             }
         
             const effectToApply = conditionMet ? effect.conditionalEffect.ifTrue : effect.conditionalEffect.ifFalse;
@@ -2046,7 +2059,12 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         draft.combatState.activeEnemyIndex = 0;
         draft.combatState.activeActionIndex = 0;
         if (!playerStats.derivedEffects.chargeNoDecay) {
-            draft.player.charge = 0;
+            const chargeLost = 3;
+            const oldCharge = draft.player.charge;
+            draft.player.charge = Math.max(0, oldCharge - chargeLost);
+            if (oldCharge > 0 && draft.player.charge < oldCharge) {
+                addLog(`回合结束，你损失了 ${oldCharge - draft.player.charge} 点[充能]。`, 'text-orange-400');
+            }
         }
         break;
       }
@@ -2731,7 +2749,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
           const collectionCount = draft.player.cardCollection.filter(c => c === cardId).length;
           
           let totalDeckCount = 0;
-          Object.values(draft.player.decks).forEach(deck => {
+          Object.keys(draft.player.decks).forEach(deckId => {
+              const deck = draft.player.decks[deckId];
               if(Array.isArray(deck)) {
                 totalDeckCount += deck.filter(c => c === cardId).length;
               }

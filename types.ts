@@ -274,7 +274,7 @@ export interface CardEffect {
     gainBlockPerChargeMultiplier?: number; // For percentage-based block per charge (player)
     hitCount?: number; // For multi-hit attacks
     bonusEffect?: { 
-        condition: 'target_has_burn' | 'target_has_bleed' | 'hand_size_less_than_or_equal' | 'target_has_poison'; 
+        condition: 'target_has_burn' | 'target_has_bleed' | 'hand_size_less_than_or_equal' | 'target_has_poison' | 'target_has_block'; 
         value?: number;
         effect: { 
             gainBlockMultiplier?: number; 
@@ -372,6 +372,7 @@ export interface CardEffect {
         condition: {
             self?: { minCharge?: number; };
             targetHasStatus?: 'poison';
+            targetHasBlock?: boolean;
         };
         ifTrue: CardEffect;
         ifFalse?: CardEffect;

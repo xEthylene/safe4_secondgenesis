@@ -82,6 +82,16 @@ export const ENEMIES: Record<string, Omit<Enemy, 'id' | 'hand' | 'discard' | 'bl
     actionsPerTurn: 1,
     tideCard: 'tactical_advantage'
   },
+  sphere7400: {
+    name: '自律防卫机器人-球体74LS00',
+    hp: 40, maxHp: 40, attack: 40, defense: 8,
+    reward: { dreamSediment: 25 },
+    statusEffects: [],
+    deck: ['enemy_strike', 'enemy_strike', 'enemy_defend','system_purge'],
+    exhaust: [],
+    tideCounter: 0,
+    actionsPerTurn: 1
+  },
   immortal_gang_member: {
     name: '永生帮成员',
     hp: 65, maxHp: 65, attack: 15, defense: 4,
@@ -102,6 +112,7 @@ export const ENEMIES: Record<string, Omit<Enemy, 'id' | 'hand' | 'discard' | 'bl
     statusEffects: [],
     deck: ['enemy_strike', 'enemy_furious_assault'],
     exhaust: [],
+    tideCard: 'slam',
     tideCounter: 0,
     actionsPerTurn: 1,
   },
@@ -110,8 +121,9 @@ export const ENEMIES: Record<string, Omit<Enemy, 'id' | 'hand' | 'discard' | 'bl
     hp: 120, maxHp: 120, attack: 16, defense: 8,
     reward: { dreamSediment: 40 },
     statusEffects: [],
-    deck: ['enemy_heavy_strike', 'tactical_advantage', 'enemy_strike'],
+    deck: ['enemy_heavy_strike', 'tactical_advantage', 'enemy_strike','slam','slam'],
     exhaust: [],
+    tideCard: 'heavy_blow',
     tideCounter: 0,
     actionsPerTurn: 1,
   },

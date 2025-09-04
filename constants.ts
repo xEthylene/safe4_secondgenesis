@@ -1,6 +1,8 @@
 import { PlayerState, CardRarity } from './types';
 
 export * from './data/cards';
+export * from './data/constructs';
+export * from './data/statusEffects';
 export * from './data/enemies';
 export * from './data/equipment';
 // FIX: Export MISSIONS and CHARACTER_PORTRAITS from constants to centralize data imports.
@@ -60,19 +62,19 @@ export const COMBAT_SETTINGS = {
 export const DECK_SIZE = 15;
 
 export const PLAYER_INITIAL_STATS: Omit<PlayerState, 'dreamSediment' | 'completedMissions'> = {
-  hp: 100,
-  maxHp: 100,
+  hp: 80,
+  maxHp: 80,
   cp: 10,
   maxCp: 10,
   cpRecovery: 1,
   attack: 10,
-  defense: 5,
+  defense: 3,
   blockPower: 20,
   activeProxy: 'Qu-alpha',
   statusEffects: [],
-  cardCollection: ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'deploy_turret', 'deploy_turret', 'slam'],
+  cardCollection: ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'combo_stab', 'retrieve','tactical_analysis','entropy_siphon'],
   decks: {
-    '1': ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'deploy_turret', 'deploy_turret', 'slam'],
+    '1': ['strike', 'strike', 'defend', 'defend', 'charge_up', 'quick_slash', 'preemptive_guard', 'overclock_strike', 'release_power', 'hemorrhage', 'firewall', 'deploy_turret', 'combo_stab','retrieve','entropy_siphon'],
     '2': [],
     '3': [],
   },
@@ -83,6 +85,7 @@ export const PLAYER_INITIAL_STATS: Omit<PlayerState, 'dreamSediment' | 'complete
   },
   inventory: [],
   charge: 0,
+  entropy: 0,
   counterAttack: null,
   tideCounter: 0,
 };

@@ -66,9 +66,10 @@
   }
   .animate-enemy-card-reveal { animation: enemy-card-reveal 0.5s forwards ease-in-out; }
   @keyframes enemy-play-card {
-    0% { transform: scale(0.9) translateY(-20px) rotate(-3deg); opacity: 1; }
-    50% { transform: scale(1.15) translateY(-90px) rotate(0deg); opacity: 1; }
-    100% { transform: scale(0.6) translateY(0px) rotate(3deg); opacity: 0; }
+    0% { transform: scale(0.9) translateY(-20px) rotate(-3deg) translateZ(0); opacity: 1; }
+    40% { transform: scale(1.15) translateY(-90px) rotate(0deg) translateZ(0); opacity: 1; }
+    60% { transform: scale(1.15) translateY(-90px) rotate(0deg) translateZ(0); opacity: 1; }
+    100% { transform: scale(0.6) translateY(0px) rotate(3deg) translateZ(0); opacity: 0; }
   }
   .animate-enemy-play-card {
     animation: enemy-play-card 1.2s ease-in-out forwards;

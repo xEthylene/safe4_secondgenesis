@@ -29,4 +29,10 @@ export const KEYWORD_DEFINITIONS: Record<string, { title: string; description: s
   '淬毒': { title: '淬毒 (Envenom)', description: '本回合所有的攻击牌都为敌人施加1层[中毒]' },
   '限制解除': { title: '限制解除 (Limit Break)', description: '回合结束时，弃掉所有手牌。' },
   '狂热计算': { title: '狂热计算 (Feverish Calculation)', description: '每当你弃牌时，对随机一名敌人造成30%攻击力的伤害。' },
+  '溯源': { title: '溯源 (Trace)', description: '从指定的牌堆（例如弃牌堆）中选择一张符合条件的卡牌，并触发与该卡牌相关的效果，例如打出它的一张复制品。' },
+  '共鸣': { title: '共鸣 (Resonance)', description: '当你打出带有此关键词的卡牌时，如果它之前打出的牌满足特定条件（例如是攻击牌），则会触发额外的效果。' },
+  '发现': { title: '发现 (Discover)', description: '从三张随机选择的、符合特定条件的卡牌中选择一张，并将其加入你的手牌。' },
+  '演化': { title: '演化 (Evolve)', description: '这张卡牌在使用或触发特定条件后会累积进度。当满足演化条件后，它会永久地转变为一张更强力或效果不同的卡牌。' },
+  '悖论': { title: '悖论 (Paradox)', description: '一种强大的、通常由敌人使用的效果，能够暂时性地改变或扭曲战斗的基本规则。' },
+  '熵能': { title: '熵能 (Entropy)', description: '一种特殊的战斗资源，通过打出卡牌积累。某些卡牌需要消耗熵能才能发动其强大效果。' },
 };

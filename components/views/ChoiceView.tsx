@@ -27,7 +27,7 @@ const ChoiceView: React.FC = () => {
         }
         // Then, select the new mission path
         // FIX: The payload for 'SELECT_MISSION' must be an object.
-        setTimeout(() => dispatch({ type: 'SELECT_MISSION', payload: { missionId } }), 100);
+        setTimeout(() => dispatch({ type: 'SELECT_MISSION', payload: { missionId, isReplay: false } }), 100);
     };
 
     return (

@@ -14,7 +14,12 @@ const KEYWORDS_TO_HIGHLIGHT = [
     '衍生', '反击', '过载', '贯穿', '连锁', '强化', '能力', '终幕', 
     '抉择', '溢流', '状态', '构装体', '弱化', '易伤', '束缚', '护盾', 
     '过热', '歼灭模式', '蓄能', '烈焰焚烧', '狂热计算', '限制解除', 
-    '薪火', '痛苦回响', '开幕仪典', '再校准协议', '淬毒'
+    '薪火', '痛苦回响', '开幕仪典', '再校准协议', '淬毒',
+    '溯源', '共鸣', '发现', '演化', '悖论', '熵能'
+];
+
+const KEYWORDS_TO_EXCLUDE_FROM_FILTER = [
+    '薪火', '痛苦回响', '开幕仪典', '再校准协议', '淬毒', '限制解除', '狂热计算', '歼灭模式', '蓄能', '烈焰焚烧'
 ];
 
 const AutoScrollContent: React.FC<{ children: React.ReactNode; className?: string; }> = ({ children, className }) => {
@@ -267,11 +272,11 @@ const HubView: React.FC = () => {
     const isDeckValid = player.decks[player.activeDeckId]?.length === DECK_SIZE;
 
     // Memoized calculations for deck editor
-    const allKeywords = useMemo(() => [
-        '消耗', '无限', '递增', '充能', '烧伤', '流血', '中毒', '弃牌',
-        '衍生', '反击', '过载', '贯穿', '连锁', '能力', '终幕',
-        '抉择', '状态', '构装体'
-    ].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN')), []);
+    const allKeywords = useMemo(() => 
+        Object.keys(KEYWORD_DEFINITIONS)
+            .filter(kw => !KEYWORDS_TO_EXCLUDE_FROM_FILTER.includes(kw))
+            .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN')), 
+    []);
 
     const cardCollectionCounts = useMemo(() => player.cardCollection.reduce((acc, cardId) => {
         acc[cardId] = (acc[cardId] || 0) + 1;
@@ -689,7 +694,7 @@ const HubView: React.FC = () => {
                                                     <span className={`text-sm font-semibold ${getRarityColor(item.rarity)}`}>{item.name}</span>
                                                     <div className="flex items-center gap-2 mt-2 self-end">
                                                         <button onClick={() => dispatch({ type: 'EQUIP_ITEM', payload: { itemId } })} onTouchStart={e => e.stopPropagation()} className="text-xs bg-green-800 hover:bg-green-700 px-2 py-1 rounded transition-transform transform active:scale-95">装备</button>
-                                                        <button onClick={() => dispatch({ type: 'DECOMPOSE_ITEM', payload: { itemId } })} onTouchStart={e => e.stopPropagation()} className="text-xs bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded transition-transform transform active:scale-95">分解</button>
+                                                        <button onClick={() => dispatch({ type: 'DECOMPOSE_ITEM', payload: { itemId } })} onTouchStart={e => e.stopPropagation()} className="text-xs bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded disabled:opacity-50 transition-transform transform active:scale-95">分解</button>
                                                     </div>
                                                 </div>
                                                 );

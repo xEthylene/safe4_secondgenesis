@@ -1,5 +1,6 @@
 
 
+
 export enum GameStatus {
   TITLE_SCREEN,
   PROLOGUE_START,
@@ -85,6 +86,7 @@ export interface ConstructTemplate {
   name: string;
   description: string;
   behavior: ConstructBehavior;
+  durability: number;
   statScaling: {
     maxHp: { ownerStat: 'maxHp', multiplier: number };
     attack: { ownerStat: 'attack', multiplier: number };
@@ -251,7 +253,7 @@ export enum CardRarity {
 }
 
 export interface CardEffect {
-    target: 'enemy' | 'self' | 'all_enemies' | 'random_enemy' | 'owner' | 'designated_target';
+    target: 'enemy' | 'self' | 'all_enemies' | 'random_enemy' | 'owner' | 'designated_target' | 'all_allies';
     damageMultiplier?: number;
     selfDamageMultiplier?: number;
     fixedDamage?: number;
@@ -259,9 +261,13 @@ export interface CardEffect {
     statusEffect?: string;
     statusEffectDuration?: number;
     statusEffectValue?: number;
+    selfStatusEffect?: string;
+    selfStatusEffectDuration?: number;
+    selfStatusEffectValue?: number;
     drawCards?: number;
     gainBlock?: number; // For fixed block (enemies)
     gainBlockMultiplier?: number; // For percentage-based block (player)
+    gainBlockFromDefenseMultiplier?: number; // For enemy block based on their defense
     overclockCost?: number; // Pay HP instead of CP
     gainCharge?: number; // Gain charge points
     consumeChargeMultiplier?: number; // Multiplies damage per charge consumed, then resets charge
@@ -270,6 +276,7 @@ export interface CardEffect {
     grantsCounter?: string; // ID of the card to be used as a counter-attack
     gainCpOnKill?: number; // Gain CP if this attack defeats an enemy
     gainCp?: number; // Gain CP directly
+    loseCp?: number; // Lose CP directly
     chargeCost?: number; // Pay Charge to play card
     gainBlockPerChargeMultiplier?: number; // For percentage-based block per charge (player)
     hitCount?: number; // For multi-hit attacks
@@ -283,6 +290,7 @@ export interface CardEffect {
             statusEffect?: string;
             statusEffectDuration?: number;
             statusEffectValue?: number;
+            addCardToDeck?: string[];
             removeStatusRatio?: {
               effectId: 'burn' | 'bleed' | 'poison';
               ratio: number;
@@ -300,6 +308,7 @@ export interface CardEffect {
         maxConsumeStacks?: number;
         stacksToRemove?: number;
         stacksToRemoveRatio?: number;
+        gainCpOnConsume?: number;
     };
     addCardToHand?: string;
     addCardToDeck?: string[];
@@ -315,6 +324,12 @@ export interface CardEffect {
       from: 'target';
       to: 'all_other_enemies';
     };
+    applyStatusIfTargetHas?: {
+        requiredStatus: 'bleed' | 'burn' | 'poison';
+        effectToApply: string;
+        value: number;
+        duration?: number;
+    };
     // Discard Mechanics
     discardCards?: {
         count: number;
@@ -326,6 +341,7 @@ export interface CardEffect {
     nextAttackCostModifier?: number;
     // Discover Mechanic
     generateCardChoice?: string[];
+    generatedCardsExhaust?: boolean;
     // Finisher Mechanic
     finisherEffect?: CardEffect;
     // Recast Mechanic
@@ -346,6 +362,7 @@ export interface CardEffect {
     onDraw?: {
         damagePercentMaxHp?: number;
         exhausts?: boolean;
+        autoPlay?: boolean;
     };
     heal?: number;
     addCardToDeckOnHpDamage?: string[];
@@ -382,11 +399,50 @@ export interface CardEffect {
     removeAllBlock?: boolean;
     forcePlayerDiscard?: {
         count: number;
+        consequences?: {
+            ifType: 'attack' | 'skill';
+            effect: CardEffect;
+        }[];
     };
     summonEnemy?: {
         enemyId: string;
         count: number;
     };
+    removeCardsFromHand?: number;
+    // New Keywords
+    resonance?: {
+        requires: 'attack' | 'skill' | 'power' | 'keyword_charge';
+        effect: CardEffect;
+    };
+    discover?: {
+        from: 'deck' | 'all_rare_burn' | 'all_rare_epic_poison';
+        options: number;
+        addExhaust?: boolean;
+        makeCopy?: boolean;
+        modify?: {
+            cost: number;
+            permanent: boolean;
+        };
+    };
+    trace?: {
+        from: 'discard';
+        cardType: 'attack' | 'skill';
+        action?: 'play_copy' | 'add_to_hand_with_mod';
+        costModifier?: number;
+        postChoiceEffect?: CardEffect;
+    };
+    evolve?: {
+        condition: {
+            type: 'cards_drawn_by_this' | 'times_played';
+            threshold: number;
+        };
+        to: string;
+        progressKey: string;
+    };
+    damageMultiplierFromContext?: {
+      ratio: number;
+    };
+    customEffect?: string;
 }
 
 
@@ -395,6 +451,7 @@ export interface Card {
   name:string;
   description: string;
   cost: number;
+  entropyCost?: number;
   rarity: CardRarity;
   type: 'attack' | 'skill' | 'power';
   effect: CardEffect;
@@ -420,9 +477,11 @@ export interface PlayerState extends Omit<PlayerStats, 'derivedEffects'> {
   equipment: Record<EquipmentSlot, string | null>;
   inventory: string[]; // Array of equipment IDs
   charge: number;
+  entropy: number;
   counterAttack: string | null; // ID of card to use for counter
   tideCounter: number;
   cardSyncsSinceLastEpic?: number;
+  cardEvolutionProgress?: Record<string, number>;
 }
 
 export interface Enemy {
@@ -443,6 +502,7 @@ export interface Enemy {
   exhaust: string[];
   block: number;
   tideCounter: number;
+  entropy: number;
   actionsPerTurn?: number;
   tideCard?: string;
   specialAction?: {
@@ -450,6 +510,8 @@ export interface Enemy {
     cardId: string;
   };
   specialActionTriggered?: boolean;
+  aiType?: 'garcia_entropy' | 'entropy_user';
+  entropyCards?: string[];
 }
 
 export interface DialogueEvent {
@@ -512,7 +574,7 @@ export interface CombatLogEntry {
 export type AnimationType = 'hit_hp' | 'hit_block' | 'burn' | 'bleed' | 'poison';
 
 export interface CombatState {
-    phase: 'player_turn' | 'enemy_turn' | 'victory' | 'defeat' | 'awaiting_discard' | 'awaiting_return_to_deck' | 'awaiting_card_choice' | 'awaiting_effect_choice';
+    phase: 'player_turn' | 'enemy_turn' | 'victory' | 'defeat' | 'awaiting_discard' | 'awaiting_return_to_deck' | 'awaiting_card_choice' | 'awaiting_effect_choice' | 'enemy_action_animation' | 'enemy_turn_start' | 'enemy_turn_processing_statuses' | 'enemy_action_resolving' | 'awaiting_trace_choice';
     enemies: Enemy[];
     constructs: Construct[];
     log: CombatLogEntry[];
@@ -523,24 +585,34 @@ export interface CombatState {
     discard: CombatCard[];
     exhaust: CombatCard[];
     block: number;
-    activeEnemyIndex: number | null;
+    activeEnemyIndex: number;
     enemyActions: Record<string, Card[] | null>;
     activeActionIndex: number;
     attackingEnemyId: string | null;
     animationTriggers: Record<string, { type: AnimationType; key: number }>; // Maps entity ID to an animation event
     sparkCostModifier: number;
     cardsPlayedThisTurn: number;
+    playerHasEntropyCards: boolean;
     discardAction?: {
       count: number;
       from: 'hand' | 'all';
       sourceCardInstanceId: string;
       sourceTargetId?: string;
+      sourceEnemyId?: string;
+      consequences?: {
+          ifType: 'attack' | 'skill';
+          effect: CardEffect;
+      }[];
     };
     returnToDeckAction?: {
         count: number;
     };
     cardChoiceAction?: {
         options: string[];
+        source?: string;
+        exhaustGenerated?: boolean;
+        makeCopy?: boolean;
+        modify?: { cost: number; permanent: boolean; };
     };
     effectChoiceAction?: {
         sourceCardInstanceId: string;
@@ -549,6 +621,14 @@ export interface CombatState {
             description: string;
             effect: CardEffect;
         }[];
+    };
+    traceAction?: {
+        sourceCardInstanceId: string;
+        from: 'discard';
+        cardType: 'attack' | 'skill';
+        action?: 'play_copy' | 'add_to_hand_with_mod';
+        costModifier?: number;
+        postChoiceEffect?: CardEffect;
     };
     nextAttackCostModifier: number;
     // New trackers for weapon/equipment passives
@@ -563,6 +643,9 @@ export interface CombatState {
     // New Reinforcement System
     enemyReinforcements: string[];
     maxEnemiesOnField?: number;
+    lastCardPlayedType?: 'attack' | 'skill' | 'power';
+    lastCardPlayedKeywords?: string[];
+    contextCardForEffect?: CombatCard;
 }
 
 interface InterimCombatState {
@@ -605,7 +688,9 @@ export type GameAction =
   | { type: 'START_COMBAT' }
   | { type: 'PLAY_CARD'; payload: { cardInstanceId: string; targetId?: string } }
   | { type: 'END_TURN' }
-  | { type: 'PROCESS_ENEMY_ACTION' }
+  | { type: 'APPLY_ENEMY_TURN_STATUS_EFFECTS' }
+  | { type: 'ADVANCE_ENEMY_TURN' }
+  | { type: 'APPLY_ENEMY_EFFECT' }
   | { type: 'START_PLAYER_TURN' }
   | { type: 'COMBAT_VICTORY' }
   | { type: 'COMBAT_DEFEAT' }
@@ -629,4 +714,5 @@ export type GameAction =
   | { type: 'CHOOSE_EFFECT'; payload: { effect: CardEffect } }
   | { type: 'DEBUG_JUMP_TO_CHAPTER'; payload: { chapter: number } }
   | { type: 'RESTART_FROM_CHECKPOINT' }
-  | { type: 'APPLY_SUPPLY_STOP' };
+  | { type: 'APPLY_SUPPLY_STOP' }
+  | { type: 'CHOOSE_TRACE_CARD'; payload: { cardInstanceId: string } };

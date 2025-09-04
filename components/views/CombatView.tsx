@@ -13,7 +13,8 @@ const KEYWORDS_TO_HIGHLIGHT = [
     '衍生', '反击', '过载', '贯穿', '连锁', '强化', '能力', '终幕', 
     '抉择', '溢流', '状态', '构装体', '弱化', '易伤', '束缚', '护盾', 
     '过热', '歼灭模式', '蓄能', '烈焰焚烧', '狂热计算', '限制解除', 
-    '薪火', '痛苦回响', '开幕仪典', '再校准协议', '淬毒'
+    '薪火', '痛苦回响', '开幕仪典', '再校准协议', '淬毒',
+    '溯源', '共鸣', '发现', '演化', '悖论', '熵能'
 ];
 
 const AutoScrollContent: React.FC<{ children: React.ReactNode; className?: string; }> = ({ children, className }) => {
@@ -124,7 +125,18 @@ const Card: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; style?: C
                 <p className="text-xs text-gray-400 capitalize">{card.rarity.toLowerCase()} {card.type}</p>
             </div>
             <p className="text-sm text-gray-200 flex-grow mt-2 whitespace-pre-wrap">{renderHighlightedText(description)}</p>
-            <p className="text-lg font-bold text-blue-300 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
+             <div className="self-end flex items-center gap-2">
+                {card.entropyCost && card.entropyCost > 0 && (
+                    <div className="flex items-center gap-1 text-purple-300" title="熵能消耗">
+                        <CubeIcon className="w-5 h-5" />
+                        <p className="text-lg font-bold">{card.entropyCost}</p>
+                    </div>
+                )}
+                <div className="flex items-center gap-1 text-blue-300" title="CP消耗">
+                    <CpuChipIcon className="w-5 h-5" />
+                    <p className="text-lg font-bold">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
+                </div>
+            </div>
         </div>
     )
 };
@@ -183,7 +195,18 @@ const MobileCard: React.FC<{ card: CombatCard; stats?: Partial<PlayerStats>; cla
             >
                 {renderHighlightedText(description)}
             </p>
-            <p className="text-sm font-bold text-blue-300 self-end">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
+             <div className="self-end flex items-center gap-1.5">
+                {card.entropyCost && card.entropyCost > 0 && (
+                    <div className="flex items-center gap-0.5 text-purple-300" title="熵能消耗">
+                        <CubeIcon className="w-4 h-4" />
+                        <p className="text-sm font-bold">{card.entropyCost}</p>
+                    </div>
+                )}
+                <div className="flex items-center gap-0.5 text-blue-300" title="CP消耗">
+                    <CpuChipIcon className="w-4 h-4" />
+                    <p className="text-sm font-bold">{card.cost === 0 && card.effect.overclockCost ? `${card.effect.overclockCost} H` : `${displayCost}`}</p>
+                </div>
+            </div>
         </div>
     )
 };
@@ -341,16 +364,22 @@ const ActionIntentIcon: React.FC<{ card: CardType; enemy: Enemy }> = ({ card, en
 
 const EnemySprite: React.FC<{ 
     enemy: Enemy; 
+    enemyIndex: number;
     isSelected: boolean; 
     onSelect: () => void; 
     isTargeting: boolean; 
     actionCards: CardType[] | null; 
-    isAttacking: boolean; 
-    currentActionIndex: number;
+    isActing: boolean;
+    isAnimating: boolean;
     onActionIntentHover: (card: CardType, enemy: Enemy) => void;
     onActionIntentLeave: () => void;
     onActionIntentPress: (card: CardType, enemy: Enemy) => void;
-}> = ({ enemy, isSelected, onSelect, isTargeting, actionCards, isAttacking, currentActionIndex, onActionIntentHover, onActionIntentLeave, onActionIntentPress }) => {
+}> = ({ enemy, enemyIndex, isSelected, onSelect, isTargeting, actionCards, isActing, isAnimating, onActionIntentHover, onActionIntentLeave, onActionIntentPress }) => {
+    const { state } = useGame();
+    const { combatState } = state;
+    const { phase, activeEnemyIndex, activeActionIndex } = combatState;
+    const isPlayerTurn = phase === 'player_turn';
+
     const hpPercentage = (enemy.hp / enemy.maxHp) * 100;
     const { animationClass, floatingTexts, trigger } = useCombatEntityAnimation(enemy.id, enemy.hp, enemy.block);
     const longPressTimer = useRef<number | null>(null);
@@ -359,9 +388,9 @@ const EnemySprite: React.FC<{
     const selectionClass = isSelected && !isDefeated ? 'border-yellow-400 scale-105' : 'border-red-800';
     const targetingClass = isTargeting && !isDefeated ? 'cursor-pointer hover:border-yellow-400 ring-2 ring-yellow-400 animate-pulse' : '';
     const defeatedClass = isDefeated ? 'animate-dissolve' : '';
-    const attackingClass = isAttacking ? 'animate-enemy-attack' : '';
+    const attackingClass = isAnimating ? 'animate-enemy-attack' : '';
 
-    const cardBeingPlayed = isAttacking && actionCards ? actionCards[currentActionIndex] : null;
+    const cardBeingPlayed = isActing && actionCards ? actionCards[activeActionIndex] : null;
     
     const tideDisplay = (enemy.tideCounter % 3 === 0 && enemy.tideCounter > 0) ? 3 : enemy.tideCounter % 3;
     
@@ -385,26 +414,36 @@ const EnemySprite: React.FC<{
         >
         <StatusVFX trigger={trigger} />
             <div className="absolute -top-12 w-full flex justify-center items-center gap-1 z-20 h-8">
-                 {!isAttacking && actionCards && actionCards.map((card, index) => (
-                    <div
-                        key={index}
-                        onMouseEnter={() => onActionIntentHover(card, enemy)}
-                        onMouseLeave={onActionIntentLeave}
-                        onTouchStart={() => handlePressStart(card, enemy)}
-                        onTouchEnd={handlePressEnd}
-                        onTouchCancel={handlePressEnd}
-                    >
-                        <ActionIntentIcon card={card} enemy={enemy} />
-                    </div>
-                ))}
+                {!isAnimating && actionCards && actionCards.map((card, index) => {
+                    if (!isPlayerTurn) {
+                        if (enemyIndex < activeEnemyIndex) return null;
+                        if (enemyIndex === activeEnemyIndex && index < activeActionIndex) return null;
+                    }
+                    return (
+                        <div
+                            key={index}
+                            onMouseEnter={() => onActionIntentHover(card, enemy)}
+                            onMouseLeave={onActionIntentLeave}
+                            onTouchStart={() => handlePressStart(card, enemy)}
+                            onTouchEnd={handlePressEnd}
+                            onTouchCancel={handlePressEnd}
+                        >
+                            <ActionIntentIcon card={card} enemy={enemy} />
+                        </div>
+                    );
+                })}
             </div>
              <div className="absolute -top-10 h-10 w-full">
                 {floatingTexts.map(ft => <FloatingText key={ft.id} text={ft.text} color={ft.color} />)}
             </div>
             <div className="absolute top-0 right-1/2 translate-x-1/2 z-20 h-56 flex items-center pointer-events-none">
                 {cardBeingPlayed && (
-                    <div key={`${enemy.id}-${currentActionIndex}`} className="animate-enemy-play-card">
-                        <Card card={cardBeingPlayed as CombatCard} stats={{ attack: enemy.attack }}/>
+                    <div key={`${enemy.id}-${activeActionIndex}`}>
+                        <Card 
+                            card={cardBeingPlayed as CombatCard} 
+                            stats={{ attack: enemy.attack }}
+                            className="animate-enemy-play-card"
+                        />
                     </div>
                 )}
             </div>
@@ -412,6 +451,12 @@ const EnemySprite: React.FC<{
                 <span className="font-bold text-blue-300 mr-2">潮汐: {tideDisplay}/3</span>
                 <RectangleStackIcon className="w-4 h-4 mr-1 text-gray-300" />
                 <span className="font-bold">{enemy.hand.length + enemy.deck.length}</span>
+                {enemy.entropy > 0 && (
+                    <div className="flex items-center text-purple-300 ml-2 border-l border-gray-600 pl-2">
+                        <CubeIcon className="w-4 h-4 mr-1" />
+                        <span className="font-bold">{enemy.entropy}</span>
+                    </div>
+                )}
             </div>
             <div className={`w-20 h-20 md:w-28 md:h-28 bg-red-900/50 border-4 rounded-full flex items-center justify-center mb-2 relative transition-all duration-200 ${selectionClass} ${targetingClass} ${animationClass} ${attackingClass}`}>
                 <span className="text-4xl">💀</span>
@@ -524,13 +569,13 @@ const CardChoiceOverlay: React.FC = () => {
 
     return (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-40 flex flex-col items-center justify-center animate-fadeIn">
-            <h2 className="text-3xl font-bold text-yellow-300 mb-8 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">选择一张卡牌衍生</h2>
-            <div className="flex gap-6">
+            <h2 className="text-3xl font-bold text-yellow-300 mb-8 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">选择一张卡牌</h2>
+            <div className="flex justify-center flex-wrap gap-2 md:gap-6">
                 {options.map(cardId => {
                     const card = allCards[cardId];
                     if (!card) return null;
                     return (
-                        <div key={cardId} className="transform hover:scale-110 transition-transform duration-200 cursor-pointer" onClick={() => dispatch({ type: 'CHOOSE_CARD_TO_GENERATE', payload: { cardId } })}>
+                        <div key={cardId} className="transform md:hover:scale-110 transition-transform duration-200 cursor-pointer scale-75 md:scale-100" onClick={() => dispatch({ type: 'CHOOSE_CARD_TO_GENERATE', payload: { cardId } })}>
                              <Card card={card as CombatCard} stats={playerStats} />
                         </div>
                     );
@@ -568,6 +613,47 @@ const EffectChoiceOverlay: React.FC = () => {
                     </button>
                 ))}
             </div>
+        </div>
+    );
+};
+
+const TraceChoiceOverlay: React.FC = () => {
+    const { state, dispatch } = useGame();
+    const { combatState, player, customEquipment } = state;
+
+    if (combatState?.phase !== 'awaiting_trace_choice' || !combatState.traceAction) {
+        return null;
+    }
+
+    const { from, cardType } = combatState.traceAction;
+    const playerStats = getEffectivePlayerStats(player, customEquipment);
+
+    const cardPool = from === 'discard' 
+        ? combatState.discard.filter(c => c.type === cardType) 
+        : [];
+
+    return (
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-40 flex flex-col items-center justify-center animate-fadeIn p-4">
+            <h2 className="text-3xl font-bold text-yellow-300 mb-8 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">溯源: 选择一张 {cardType === 'attack' ? '攻击' : '技能'} 牌</h2>
+            {cardPool.length > 0 ? (
+                <div className="flex flex-wrap justify-center gap-2 md:gap-4 max-h-[70vh] overflow-y-auto p-4">
+                    {cardPool.map(card => (
+                        <div key={card.instanceId} className="transform md:hover:scale-110 transition-transform duration-200 cursor-pointer scale-75 md:scale-100" onClick={() => dispatch({ type: 'CHOOSE_TRACE_CARD', payload: { cardInstanceId: card.instanceId } })}>
+                            <Card card={card} stats={playerStats} />
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center">
+                    <p className="text-xl text-gray-400">没有符合条件的卡牌。</p>
+                     <button
+                        onClick={() => dispatch({ type: 'CHOOSE_TRACE_CARD', payload: { cardInstanceId: '' } })}
+                        className="mt-8 px-8 py-3 bg-gray-600 text-white font-bold rounded-md hover:bg-gray-500"
+                    >
+                        返回
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
@@ -625,16 +711,19 @@ const CombatView: React.FC = () => {
             setBannerText('你的回合');
             setSelectedCardInstanceId(null);
             setMobileDetailCardIndex(null);
-            const timer = setTimeout(() => setBannerText(null), 1500);
-            return () => clearTimeout(timer);
-        } else if (combatState.phase === 'enemy_turn' && prevPhaseRef.current === 'player_turn') {
+        } else if (combatState.phase === 'enemy_turn_start' && prevPhaseRef.current !== 'enemy_turn_start') {
             setBannerText('敌人回合');
-            const timer = setTimeout(() => setBannerText(null), 1500);
-            return () => clearTimeout(timer);
         }
+        
+        const bannerTimer = setTimeout(() => {
+            if (bannerText) setBannerText(null);
+        }, 1500);
+
         prevTurnRef.current = combatState.turn;
         prevPhaseRef.current = combatState.phase;
-    }, [combatState?.turn, combatState?.phase]);
+        
+        return () => clearTimeout(bannerTimer);
+    }, [combatState?.turn, combatState?.phase, bannerText]);
 
     const isHandInteractionLocked = isMobile && (combatState?.phase === 'awaiting_discard' || combatState?.phase === 'awaiting_return_to_deck');
 
@@ -651,7 +740,7 @@ const CombatView: React.FC = () => {
             // Standard turn-based drawer logic for better UX
             else if (currentPhase === 'player_turn' && previousPhase !== 'player_turn') {
                 setIsHandDrawerOpen(true);
-            } else if (currentPhase === 'enemy_turn' && previousPhase === 'player_turn') {
+            } else if (currentPhase.startsWith('enemy_') && previousPhase === 'player_turn') {
                 setIsHandDrawerOpen(false);
             }
             prevPhaseRef.current = currentPhase;
@@ -694,7 +783,7 @@ const CombatView: React.FC = () => {
     const playerStats = getEffectivePlayerStats(player, customEquipment);
     const { animationClass: playerAnimationClass, floatingTexts: playerFloatingTexts } = useCombatEntityAnimation('player', player.hp, combatState?.block || 0);
 
-    const isSelectionPhase = combatState?.phase === 'awaiting_discard' || combatState?.phase === 'awaiting_return_to_deck' || combatState?.phase === 'awaiting_effect_choice';
+    const isSelectionPhase = ['awaiting_discard', 'awaiting_return_to_deck', 'awaiting_effect_choice', 'awaiting_trace_choice'].includes(combatState?.phase || '');
     const isHandSelectionPhase = combatState?.phase === 'awaiting_discard' || combatState?.phase === 'awaiting_return_to_deck';
 
     const handleActionIntentHover = (card: CardType, enemy: Enemy) => {
@@ -718,33 +807,39 @@ const CombatView: React.FC = () => {
     };
 
     useEffect(() => {
-        if (!isSelectionPhase) {
-            setSelectedInstanceIds([]);
-        }
-    }, [isSelectionPhase]);
-
-    useEffect(() => {
         if (combatState?.enemies.length) {
             const firstAliveEnemy = combatState.enemies.find(e => e.hp > 0);
             if (firstAliveEnemy && !selectedTargetId) setSelectedTargetId(firstAliveEnemy.id);
         }
     }, [combatState?.enemies, selectedTargetId]);
 
+    // New high-precision timing logic for enemy turn sequence
     useEffect(() => {
-        if (combatState?.phase === 'enemy_turn' && combatState.activeEnemyIndex !== null) {
-            dispatch({ type: 'PROCESS_ENEMY_ACTION' });
-        } else if (combatState?.phase === 'enemy_turn' && combatState.activeEnemyIndex === null) {
-            dispatch({ type: 'START_PLAYER_TURN' });
+        if (!combatState) return;
+        let timer: number;
+        
+        switch (combatState.phase) {
+            case 'enemy_turn_start':
+                timer = window.setTimeout(() => dispatch({ type: 'APPLY_ENEMY_TURN_STATUS_EFFECTS' }), 1000);
+                break;
+            case 'enemy_turn_processing_statuses':
+                timer = window.setTimeout(() => dispatch({ type: 'ADVANCE_ENEMY_TURN' }), 1000);
+                break;
+            case 'enemy_action_animation':
+                timer = window.setTimeout(() => dispatch({ type: 'APPLY_ENEMY_EFFECT' }), 500);
+                break;
+            case 'enemy_action_resolving':
+                timer = window.setTimeout(() => dispatch({ type: 'ADVANCE_ENEMY_TURN' }), 1500);
+                break;
+            case 'victory':
+            case 'defeat':
+                 timer = window.setTimeout(() => {
+                    dispatch({ type: combatState.phase === 'victory' ? 'COMBAT_VICTORY' : 'COMBAT_DEFEAT' });
+                }, 2000);
+                break;
         }
-    }, [combatState?.phase, combatState?.activeEnemyIndex, dispatch]);
 
-    useEffect(() => {
-        if (combatState?.phase === 'victory' || combatState?.phase === 'defeat') {
-            const timer = setTimeout(() => {
-                dispatch({ type: combatState.phase === 'victory' ? 'COMBAT_VICTORY' : 'COMBAT_DEFEAT' });
-            }, 2000);
-            return () => clearTimeout(timer);
-        }
+        return () => clearTimeout(timer);
     }, [combatState?.phase, dispatch]);
     
     if (!combatState) return <div>Loading Combat...</div>;
@@ -763,6 +858,7 @@ const CombatView: React.FC = () => {
         if (isBound && card.type === 'attack') return false;
         if (card.effect.overclockCost && player.hp <= card.effect.overclockCost) return false;
         if (!card.effect.overclockCost && player.cp < effectiveCost) return false;
+        if (card.entropyCost && player.entropy < card.entropyCost) return false;
         return true;
     };
 
@@ -1049,20 +1145,26 @@ const CombatView: React.FC = () => {
                 
                 <div className="flex-grow flex flex-col justify-center items-center relative px-2 overflow-hidden pt-8 md:pt-12">
                      <div className="w-full grid grid-cols-3 gap-2 place-items-end md:flex md:flex-row md:items-end md:justify-center md:gap-4">
-                        {combatState.enemies.map(enemy => (
-                            <EnemySprite
-                                key={enemy.id} enemy={enemy}
-                                actionCards={combatState.enemyActions[enemy.id] || null}
-                                isSelected={selectedTargetId === enemy.id}
-                                onSelect={() => handleTargetSelect(enemy.id)}
-                                isTargeting={!!isTargeting && !isSelectionPhase}
-                                isAttacking={combatState.attackingEnemyId === enemy.id}
-                                currentActionIndex={combatState.activeActionIndex}
-                                onActionIntentHover={handleActionIntentHover}
-                                onActionIntentLeave={handleActionIntentLeave}
-                                onActionIntentPress={handleActionIntentPress}
-                            />
-                        ))}
+                        {combatState.enemies.map((enemy, enemyIndex) => {
+                            const isActing = combatState.attackingEnemyId === enemy.id;
+                            const isAnimating = isActing && combatState.phase === 'enemy_action_animation';
+                            return (
+                                <EnemySprite
+                                    key={enemy.id} 
+                                    enemy={enemy}
+                                    enemyIndex={enemyIndex}
+                                    actionCards={combatState.enemyActions[enemy.id] || null}
+                                    isSelected={selectedTargetId === enemy.id}
+                                    onSelect={() => handleTargetSelect(enemy.id)}
+                                    isTargeting={!!isTargeting && !isSelectionPhase}
+                                    isActing={isActing}
+                                    isAnimating={isAnimating}
+                                    onActionIntentHover={handleActionIntentHover}
+                                    onActionIntentLeave={handleActionIntentLeave}
+                                    onActionIntentPress={handleActionIntentPress}
+                                />
+                            );
+                        })}
                         {[...playerConstructs, ...enemyConstructs].map(construct => (
                              <ConstructSprite 
                                 key={construct.instanceId} construct={construct}
@@ -1123,6 +1225,12 @@ const CombatView: React.FC = () => {
                             <span className="font-bold text-sm">潮汐</span>
                             <span className="font-mono font-bold">{tideDisplay}/3</span>
                         </div>
+                        {combatState.playerHasEntropyCards && (
+                            <div className="flex items-center gap-2 text-purple-300" title="扭曲熵能">
+                                <CubeIcon className="w-6 h-6" />
+                                <span className="font-mono font-bold">{player.entropy}/30</span>
+                            </div>
+                        )}
                     </div>
                     <div className="flex-shrink-0 mx-2 md:mx-4 flex flex-col items-center">
                         <div className="flex items-center gap-2 text-blue-300 font-mono font-bold text-xl mb-1">
@@ -1219,6 +1327,12 @@ const CombatView: React.FC = () => {
                            <span className="font-bold text-xs">潮汐</span>
                             <span className="font-mono font-bold text-xs">{tideDisplay}/3</span>
                         </div>
+                         {combatState.playerHasEntropyCards && (
+                            <div className="flex items-center gap-1 text-purple-300" title="扭曲熵能">
+                                <CubeIcon className="w-5 h-5" />
+                                <span className="font-mono font-bold text-xs">{player.entropy}/30</span>
+                            </div>
+                        )}
                     </div>
                     <div className="flex-shrink-0 mx-2 flex flex-col items-center">
                         <div className="flex items-center gap-2 text-blue-300 font-mono font-bold text-base mb-1">
@@ -1259,6 +1373,7 @@ const CombatView: React.FC = () => {
 
             <CardChoiceOverlay />
             <EffectChoiceOverlay />
+            <TraceChoiceOverlay />
         </div>
     );
 };

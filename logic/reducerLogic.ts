@@ -101,6 +101,10 @@ export const drawCards = (draft: Draft<GameState>, deps: ReducerDependencies, co
                     playSound('player_hit');
                     triggerAnimation(draft, 'player', 'hit_hp');
                     addLog(draft, `你因 [${card.name}] 的效果受到了 ${damage} 点伤害。`, 'text-red-400');
+                    if (draft.player.hp <= 0) {
+                        draft.combatState.phase = 'defeat';
+                        break;
+                    }
                 }
                 if (onDrawEffect.exhausts) {
                     draft.combatState.exhaust.push(card);
@@ -1707,6 +1711,10 @@ export const playCard = (draft: Draft<GameState>, deps: ReducerDependencies, car
         draft.player.hp -= card.effect.overclockCost;
         triggerAnimation(draft, 'player', 'hit_hp');
         addLog(draft, `你支付了 ${card.effect.overclockCost} 点HP发动 [${card.name}]。`, 'text-red-400');
+        if (draft.player.hp <= 0) {
+            draft.combatState.phase = 'defeat';
+            return;
+        }
     } else {
         if (draft.player.cp < effectiveCost) return;
         draft.player.cp -= effectiveCost;
@@ -2372,7 +2380,7 @@ export const handleManualDiscard = (draft: Draft<GameState>, deps: ReducerDepend
                 draft.player.statusEffects.push(empoweredEffect);
                 addLog(draft, `[装备效果] 效果触发，你的下一张攻击牌伤害提升${damageBonus * 100}%。`, 'text-teal-300');
             }
-            if(playerStats.derivedEffects.onFirstDiscardDraw) {
+            if (playerStats.derivedEffects.onFirstDiscardDraw) {
                 addLog(draft, `[装备效果] 效果触发，抽1张牌。`, 'text-teal-300');
                 drawCards(draft, deps, playerStats.derivedEffects.onFirstDiscardDraw);
             }
@@ -2546,6 +2554,17 @@ export const advanceStory = (draft: Draft<GameState>, deps: ReducerDependencies)
         case 'action':
             switch (nextEvent.action) {
                 case 'open_hub':
+                    // FIX: Mark mission as complete and grant rewards before returning to hub.
+                    // This is for missions that end directly with an 'open_hub' action, like the prologue.
+                    if (draft.currentMissionId && !draft.player.completedMissions.includes(draft.currentMissionId)) {
+                        if (!draft.currentMissionIsReplay) {
+                             draft.player.completedMissions.push(draft.currentMissionId);
+                        }
+                        const reward = draft.currentMissionIsReplay 
+                            ? Math.round(mission.rewards.dreamSediment * 0.5) 
+                            : mission.rewards.dreamSediment;
+                        draft.player.dreamSediment += reward;
+                    }
                     returnToHubAndReset(draft, deps);
                     break;
                 case 'present_choice':

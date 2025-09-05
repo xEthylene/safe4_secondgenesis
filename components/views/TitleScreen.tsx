@@ -19,7 +19,10 @@ const TitleScreen: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fadeIn">
-      <h1 className="text-6xl font-extrabold text-cyan-400 drop-shadow-[0_0_10px_rgba(0,255,255,0.5)]">
+      <h1
+        className="text-6xl font-extrabold text-cyan-400 drop-shadow-[0_0_10px_rgba(0,255,255,0.5)] cursor-pointer"
+        onClick={() => setShowDebugInput(true)}
+      >
         SAFE IV
       </h1>
       <h2 className="text-2xl mt-2 text-gray-300">
@@ -35,14 +38,7 @@ const TitleScreen: React.FC = () => {
         [ 确立存在 ]
       </button>
 
-      {!showDebugInput ? (
-        <button
-          onClick={() => setShowDebugInput(true)}
-          className="mt-4 px-4 py-2 bg-gray-700 text-gray-300 text-xs font-bold rounded-md hover:bg-gray-600 transition-all duration-200"
-        >
-          [ 调试跳转 ]
-        </button>
-      ) : (
+      {showDebugInput && (
         <div className="mt-4 p-4 bg-gray-800 border border-cyan-500/30 rounded-lg animate-fadeIn flex flex-col items-center gap-3 w-64">
           <label htmlFor="chapter-input" className="text-sm text-cyan-300">输入要跳转到的章节号:</label>
           <input

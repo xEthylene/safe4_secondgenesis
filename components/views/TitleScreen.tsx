@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { useGame } from '../../contexts/GameContext';
 import Typewriter from '../Typewriter';
